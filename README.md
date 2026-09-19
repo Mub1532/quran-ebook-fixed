@@ -1,8 +1,7 @@
-forked version to add fixed layout EPUB, 15 line indo pak versions
-Fixed Layout EPUB made best for the aspect ratio of Z fold devices (book style fold)
-Tajweed rules added also, WIP.
+##### forked version to add fixed layout EPUB, 15 line indo pak versions
+- Fixed Layout EPUB made best for the aspect ratio of Z fold devices (book style fold)*
 
-this repo is not a true fork, it has changed a lot of things, things may be broken from the original repo, so please do not use this as a base and use the original authors.
+**WARNING:** this repo is not a true 1 to 1 fork, it has changed a lot of things, things may be broken from the original repo, so please do not use this as a base and use the original authors version.
 
 <div align="center">
 
