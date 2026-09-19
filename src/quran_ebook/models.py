@@ -32,6 +32,7 @@ class Ayah(BaseModel):
     text: str
     page_number: int | None = None
     juz_number: int | None = None
+    ruku_number: int | None = None  # Cumulative ruku' (1..558) — margin marks
     hizb_quarter: int | None = None
     sajdah: bool = False
     hizb_marker: bool = False

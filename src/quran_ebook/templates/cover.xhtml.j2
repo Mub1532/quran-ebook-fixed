@@ -3,8 +3,18 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8"/>
+{%- if fxl_w %}
+    <meta name="viewport" content="width={{ fxl_w }}, height={{ fxl_h }}"/>
+{%- endif %}
     <title>{{ title }}</title>
     <style>
+{%- if fxl_w %}
+        /* Fixed-layout build: the cover is em-based, so anchor the root
+           to the canvas instead of the reader's default 16px, or the
+           whole design lands tiny in one corner of {{ fxl_w }}px. */
+        html { font-size: {{ (fxl_w / 38.5) | round(1) }}px; }
+        body { width: {{ fxl_w }}px; height: {{ fxl_h }}px; overflow: hidden; }
+{%- endif %}
 {%- if font_family and font_filename %}
         @font-face {
             font-family: '{{ font_family }}';

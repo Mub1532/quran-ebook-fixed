@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ar" lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width={{ page_w }}, height={{ page_h }}"/>
+    <title>{{ page_number }}</title>
+    <link rel="stylesheet" type="text/css" href="styles/base.css"/>
+    <style type="text/css">
+        .fxl-head { left: {{ geo.header_left }}px; top: {{ geo.header_top }}px; width: {{ geo.header_w }}px; height: {{ geo.header_h }}px; line-height: {{ geo.header_h }}px; }
+        .fxl-frame { padding: {{ geo.frame_pad_y }}px 0; left: {{ geo.frame_left }}px; top: {{ geo.frame_top }}px; width: {{ geo.frame_w }}px; height: {{ geo.frame_h }}px; }
+        .fxl-line { width: {{ geo.line_box_w }}px; padding: 0 {{ geo.line_pad_x }}px; height: {{ geo.line_h }}px; line-height: {{ geo.text_line_h }}px; font-size: {{ geo.font_px }}px; border-bottom: {{ geo.rule_px }}px solid #d8cdb4; }
+        .fxl-mark { left: {{ geo.mark_left }}px; width: {{ geo.mark_w }}px; height: {{ geo.line_h }}px; }
+        .fxl-folio { top: {{ geo.folio_top }}px; }
+{%- if legend %}
+        .fxl-legend { top: {{ geo.legend_top }}px; height: {{ geo.legend_h }}px; line-height: {{ geo.legend_h }}px; left: {{ geo.frame_left }}px; width: {{ geo.frame_w }}px; }
+{%- endif %}
+    </style>
+</head>
+<body class="fxl-body{% if tajweed_scheme %} tj-scheme-{{ tajweed_scheme }}{% endif %}">
+    <div class="fxl-page"><span epub:type="pagebreak" role="doc-pagebreak" id="page{{ page_number }}" title="{{ page_number }}"></span>
+    <div class="fxl-head"><span class="fxl-head-surah">{{ surah_names[head.surah] }} <span class="fxl-head-num">{{ head.surah | arabic_numerals }}</span></span><span class="fxl-head-juz">{{ juz_names[head.juz] }} <span class="fxl-head-num">{{ head.juz | arabic_numerals }}</span></span></div>
+    <div class="fxl-frame">
+{%- for line in page.lines %}
+{%- if line.type == 'surah_name' %}
+        <div class="fxl-line fxl-surah{% if loop.last %} fxl-lastline{% endif %}" id="surah-{{ line.surah }}"><span class="fxl-surah-band">سورة {{ surah_names[line.surah] }}</span></div>
+{%- elif line.type == 'basmallah' %}
+        <div class="fxl-line fxl-basmallah{% if loop.last %} fxl-lastline{% endif %}">{{ bismillah_text }}</div>
+{%- else %}
+        <div class="fxl-line{% if line.centered %} fxl-centered{% endif %}{% if line.juz_start %} fxl-juz-start{% endif %}{% if loop.last %} fxl-lastline{% endif %}">{% for tok in line.tokens %}{% if tok.kind == 'end' %}&#8288;<a class="ayah-mark-link" href="#ayah-{{ tok.surah }}-{{ tok.ayah }}"><span class="ayah-mark" id="ayah-{{ tok.surah }}-{{ tok.ayah }}">{{ tok.text }}</span></a>{% else %}{% if not loop.first %} {% endif %}{% if tok.hizb %}<span class="hizb-marker">۞</span>&#8288;{% endif %}{{ tok.text }}{% endif %}{% endfor %}</div>
+{%- endif %}
+{%- endfor %}
+    </div>
+{%- for line in page.lines %}
+{%- if line.ruku or line.sajdah %}
+    <div class="fxl-mark" style="top: {{ geo.text_top + loop.index0 * geo.line_h }}px;"><div class="fxl-mark-in">{% if line.ruku %}<span class="fxl-ruku"><span class="fxl-ruku-ayn">ع</span><span class="fxl-ruku-num">{{ line.ruku | arabic_numerals }}</span></span>{% endif %}{% if line.sajdah %}<span class="fxl-sajdah">سجدة</span>{% endif %}</div></div>
+{%- endif %}
+{%- endfor %}
+    <div class="fxl-folio">{{ page_number | arabic_numerals }} <span class="fxl-folio-en">({{ page_number }})</span></div>
+{%- if legend %}
+    <div class="fxl-legend">{% for colour, label in legend %}<span class="fxl-key"><span class="fxl-dot" style="background: {{ colour }};"></span>{{ label }}</span>{% endfor %}</div>
+{%- endif %}
+    </div>
+</body>
+</html>

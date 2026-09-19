@@ -1,0 +1,29 @@
+# Fixed 15-line IndoPak mushaf — the Qudratullah grid.
+#
+# Real Nastaleeq text laid out on QUL Mushaf Layout #12's own line
+# breaks (data/qudratullah-indopak-15-lines.db, 610 pages), one EPUB
+# page per mushaf page. Pages 1, 2 and 610 hold 8, 8 and 10 lines; the
+# short page just ends and the next starts fresh.
+#
+# Experimental: line BREAKS are exact, but the reader's font size decides
+# whether a line still fits the measure — set the font small enough that
+# no line wraps, or the grid slips. See README "Other Versions".
+book:
+  title: "القرآن الکریم"
+  language: "ar"
+
+quran:
+  script: "text_indopak_nastaleeq"
+  source: "quran_api"
+
+font:
+  arabic: "indopak_nastaleeq"
+
+layout:
+  structure: "indopak_fixed"
+  show_ayah_numbers: true
+  show_bismillah: true
+
+output:
+  directory: "output"
+  status: "experimental"

@@ -1,0 +1,38 @@
+# Fixed 15-line IndoPak mushaf + tap-for-translation (The Clear Quran).
+#
+# The Qudratullah grid exactly as in indopak_fixed.yaml — same line
+# breaks, same one-EPUB-page-per-mushaf-page — but every ayah marker is
+# an EPUB3 noteref, so tapping it pops up Dr. Mustafa Khattab's
+# translation (annotated edition: translator footnotes are inlined into
+# the same popup). Nothing is added to the page itself, so the mushaf
+# grid is untouched.
+#
+# Needs "Show Footnotes in Popup" enabled in KOReader — see the README's
+# KOReader Settings section, otherwise the note renders in-page and the
+# 15-line grid breaks.
+book:
+  title: "القرآن الکریم"
+  language: "ar"
+
+quran:
+  script: "text_indopak_nastaleeq"
+  source: "quran_api"
+
+font:
+  arabic: "indopak_nastaleeq"
+
+translation:
+  source: "local"
+  edition: "clearquran"
+  language: "en"
+  name: "Dr. Mustafa Khattab (The Clear Quran, Annotated)"
+  abbreviation: "khattab-fn"
+
+layout:
+  structure: "indopak_fixed_interactive"
+  show_ayah_numbers: true
+  show_bismillah: true
+
+output:
+  directory: "output"
+  status: "experimental"

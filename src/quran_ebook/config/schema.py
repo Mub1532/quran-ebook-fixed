@@ -49,6 +49,17 @@ _VARIANT_STRUCT = {
     "qcf_by_surah": ("ayah", "inline", None),
     "qcf_interactive": ("flow", "popup", None),
     "qcf_fixed": ("page", None, None),
+    # Fixed 15-line Qudratullah mushaf grid (IndoPak Nastaleeq): real text
+    # laid out on QUL Mushaf Layout #12's line breaks, one EPUB page per
+    # mushaf page.  Same "page" granularity as the QCF mushaf layouts.
+    "indopak_fixed": ("page", None, None),
+    # Same grid, with the ayah marker as a noteref: tap it and the reader
+    # pops the translation. Page granularity, popup placement.
+    "indopak_fixed_interactive": ("page", "popup", None),
+    # TRUE fixed layout (EPUB3 pre-paginated, one file per mushaf page).
+    # Its own granularity token: "page" already belongs to the reflowable
+    # mushaf layouts, and two structures may never produce one filename.
+    "indopak_fxl": ("fxl", None, None),
     "qcf_fixed_interactive": ("page", "popup", None),
 }
 
@@ -73,6 +84,7 @@ class LayoutConfig(BaseModel):
     show_bismillah: bool = True
     wbw_transliteration: bool = False  # Show transliteration row in WBW layout
     wbw_gloss_language: str = ""  # Override WBW gloss language (e.g. "en" for English glosses with non-English translation). Empty = use translation language.
+    tajweed: bool = False  # Colour tajweed rules (indopak_fxl only). Needs the QUL word-by-word export; see data/tajweed.py. Stamps the encoding slot "tj" into the filename so a coloured variant never collides with its plain sibling.
     ayah_align: str = "right"  # .ayah-text alignment in by_surah/ayah_popup layouts: right (default; device-settled 2026-07-05) | center | justify (justify sets text-align-last: right — device-rejected, CRE stretches lines). Only standalone ayah blocks consume this; .bilin templates hard-override to right in CSS.
 
 
@@ -188,6 +200,11 @@ class BuildConfig(BaseModel):
                 f"font {self.font.arabic!r} has no filename-grammar mapping — "
                 "add it to _VARIANT_FONT (docs/filename_grammar_v1.md §1)"
             ) from None
+        # Tajweed colouring is an overlay on the same script, so it lands
+        # in the ENCODING slot the grammar already reserves for it —
+        # the same "tj" token qpc_uthmani_hafs_tajweed uses (§1).
+        if self.layout.tajweed and not enc:
+            enc = "tj"
         placement = pl_translated if self.translation else pl_bare
         parts = [
             "quran",

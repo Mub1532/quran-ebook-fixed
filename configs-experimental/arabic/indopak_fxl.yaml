@@ -1,0 +1,33 @@
+# TRUE fixed-layout 15-line IndoPak mushaf (Qudratullah grid).
+#
+# EPUB3 pre-paginated: a 1848x2772 px canvas per page (2:3 portrait),
+# one XHTML file per mushaf page, every box in px. The reader cannot
+# change font size or spacing — that is the point. Lines are justified
+# to fill the measure, and each page is sized so ITS widest line fills
+# it naturally (see data/indopak_fxl + data/indopak_15_fxl_metrics.json).
+#
+# The frame and folio are centred as one unit on the canvas. Pages 1, 2
+# and 610 carry 8, 8 and 10 lines and simply end there; pages 1-2 get a
+# narrower centred block, as the printed mushaf sets them.
+#
+# Needs a reader that honours EPUB3 fixed layout (Apple Books, Thorium,
+# Calibre viewer). Reflowable-only readers will ignore the geometry.
+book:
+  title: "القرآن الکریم"
+  language: "ar"
+
+quran:
+  script: "text_indopak_nastaleeq"
+  source: "quran_api"
+
+font:
+  arabic: "indopak_nastaleeq"
+
+layout:
+  structure: "indopak_fxl"
+  show_ayah_numbers: true
+  show_bismillah: true
+
+output:
+  directory: "output"
+  status: "experimental"

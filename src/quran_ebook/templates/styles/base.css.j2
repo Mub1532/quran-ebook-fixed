@@ -393,3 +393,328 @@ table.bismillah-table td {
 .tj-idgham_mutajanisayn, .tj-idgham_mutaqaribayn { color: #A1A1A1; }
 .tj-iqlab { color: #26BFFD; }
 .tj-ghunnah { color: #FF7E1E; }
+
+/* === Fixed 15-line mushaf layout (IndoPak Qudratullah) ==================
+   Line breaks come from QUL Mushaf Layout #12, so each .ipk-line holds
+   exactly the words the printed 15-line mushaf puts on that line. Pages
+   1, 2 and 610 carry 8, 8 and 10 lines — a short page simply ends early
+   and the next page starts fresh, which is what page-break-after buys.
+
+   Lines are NOT stretched to both margins. Each .ipk-line is its own
+   one-line block, so flush-both-sides would need `text-align-last:
+   justify` — tried 2026-09-18 and rejected on the rendered page: the
+   printed mushaf reaches its even margins with kashida elongation, which
+   CREngine cannot do, so the whole deficit lands in the word gaps and a
+   short line tears itself apart. Same ruling the ayah_align note above
+   records for .ayah-text. Natural spacing, flush right, ragged left —
+   the line BREAKS are what this layout is for. */
+.mushaf-page {
+    margin: 0;
+    padding: 0;
+    /* A mushaf page is indivisible: never let the frame tear across two
+       reader pages. If the reader's font size makes 15 lines too tall to
+       fit, the whole page moves on rather than splitting mid-grid — the
+       visible signal to turn the font size down. */
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+.mushaf-page.page-break {
+    page-break-after: always;
+    -webkit-column-break-after: always;
+    break-after: always;
+}
+
+/* The frame: a restrained double rule, the way the printed page is
+   bordered. Padding is asymmetric-free on purpose — the grid inside
+   carries its own rhythm through line-height alone. */
+.mushaf-frame {
+    border: 1px solid #b9ab8e;
+    outline: 3px double #b9ab8e;
+    outline-offset: 2px;
+    padding: 0.55em 0.7em;
+    margin: 0.35em 0.25em 0 0.25em;
+}
+
+.ipk-line {
+    font-size: 1em;
+    line-height: 2.05;
+    text-align: right;
+    text-indent: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/* Last line of a surah, and any line the layout marks centred (269 of
+   them corpus-wide), must NOT be stretched — QUL sets is_centered
+   exactly where the printed mushaf centres a short line. */
+.ipk-line.ipk-centered {
+    text-align: center;
+}
+
+/* Surah header as one line of the grid — it occupies a line slot in the
+   layout db, so it may not become a multi-line block or the page would
+   overflow its 15 slots. */
+.ipk-surah {
+    text-align: center;
+    line-height: 2.05;
+}
+.ipk-surah-band {
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: '{{ font_family }}', serif;
+    font-size: 0.82em;
+    line-height: 1.5;
+    text-align: center;
+    color: #000;
+    border-top: 1px solid #b9ab8e;
+    border-bottom: 1px solid #b9ab8e;
+    background: #f3eee2;
+    padding: 0.08em 0;
+}
+
+.ipk-basmallah {
+    text-align: center;
+    font-family: '{{ basmala_font_family }}', serif;
+    font-size: 0.95em;
+    line-height: 2.05;
+    margin: 0;
+}
+
+/* Folio number under the frame, the mushaf's own page number (1..610) —
+   not the reader's, which depends on font size. */
+.mushaf-folio {
+    text-align: center;
+    font-family: '{{ symbol_font_family }}', serif;
+    font-size: 0.7em;
+    color: #6b6b6b;
+    margin: 0.3em 0 0 0;
+}
+
+
+/* === TRUE fixed-layout mushaf (EPUB3 pre-paginated) =====================
+   Every box below is in px on the canvas declared per page by a
+   viewport meta. Nothing here may depend on the reader's font size — that
+   is the whole point of the layout, and it is what separates this from
+   the reflowable .ipk-* rules above.
+
+   Per-page values (font-size, block width, line height, frame box, the
+   header band and the margin gutter) are emitted inline by the template
+   from data/indopak_fxl.page_geometry, so each page is sized to its own
+   widest line. */
+.fxl-body {
+    margin: 0;
+    padding: 0;
+    width: {{ fxl_page_w }}px;
+    height: {{ fxl_page_h }}px;
+    position: relative;
+}
+.fxl-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: {{ fxl_page_w }}px;
+    height: {{ fxl_page_h }}px;
+    overflow: hidden;
+}
+
+/* Running head: surah left, para right, the way a 15-line mushaf sets
+   it. Floats rather than flex — the widest possible reader support, and
+   the two ends never meet at this width. */
+.fxl-head {
+    position: absolute;
+    font-family: '{{ font_family }}', serif;
+    font-size: 72px;
+    color: #4a4235;
+}
+.fxl-head-surah { float: left; }
+.fxl-head-juz { float: right; }
+/* Numerals in the symbol font, same reason as .plain-num above: the
+   Quranic Nastaleeq face draws U+0660-0669 far too small to read at
+   running-head size (٢ came out ~15px wide against a 52px name). */
+.fxl-head-num {
+    font-family: '{{ symbol_font_family }}', serif;
+}
+
+.fxl-frame {
+    position: absolute;
+    box-sizing: border-box;
+    /* Vertical only — the horizontal inset is applied per LINE so that
+       each line's rule reaches both inner edges of the frame. */
+    border: 3px solid #b9ab8e;
+    outline: 8px double #b9ab8e;
+    outline-offset: 7px;
+}
+
+/* Here justification DOES fire: the page is sized so this page's widest
+   line fills the measure exactly, and the shorter ones stretch to meet
+   it. text-align-last is what does the work — each line is its own
+   one-line block, so it is always the "last" line.
+
+   The ayah marker's TRAILING nbsp is stripped by the loader when a
+   marker ends a line: nbsp neither stretches nor collapses, so it would
+   otherwise sit between the medallion and the margin as a fixed gap that
+   justification cannot close. */
+.fxl-line {
+    box-sizing: border-box;   /* the ruled line sits INSIDE the slot */
+    text-align: justify;
+    text-align-last: justify;
+    text-indent: 0;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* The frame's own bottom rule closes the last line — a border there too
+   would read as a double rule. */
+.fxl-line.fxl-lastline { border-bottom: none !important; }
+
+/* Deliberately short lines (end of a surah) are centred, never stretched. */
+.fxl-line.fxl-centered {
+    text-align: center;
+    text-align-last: center;
+}
+
+/* The surah heading occupies a full line slot of the grid, so its band
+   fills that slot completely — no side inset, full height — rather than
+   floating as a short strip inside it. */
+.fxl-surah {
+    text-align: center;
+    text-align-last: center;
+}
+/* Compound selector on purpose: the per-page <style> block sets
+   .fxl-line padding and loads AFTER this sheet, so a bare .fxl-surah
+   rule of equal specificity would lose and leave the band inset. */
+.fxl-line.fxl-surah {
+    padding: 0;
+}
+.fxl-surah-band {
+    display: block;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    font-family: '{{ font_family }}', serif;
+    /* As large as the slot takes: the body text sits at 1em in this same
+       line height, so a heading at 1em is guaranteed to fit too. */
+    font-size: 1em;
+    text-align: center;
+    color: #000;
+    border-top: 2px solid #b9ab8e;
+    border-bottom: 2px solid #b9ab8e;
+    background: #f3eee2;
+}
+
+/* A new para opens on a tinted line, as the printed mushaf sets it —
+   the same cream family as the surah band but lighter, since it sits
+   under running text rather than behind a heading. */
+.fxl-line.fxl-juz-start {
+    background: #faf6ea;
+}
+
+.fxl-basmallah {
+    text-align: center;
+    text-align-last: center;
+    font-family: '{{ basmala_font_family }}', serif;
+    font-size: 0.62em;
+}
+
+/* Ruku' and sajdah signs live OUTSIDE the gold rule, in the left gutter
+   (the end of an RTL line), which is where the printed mushaf sets them
+   — and at a size that can actually be read, unlike the font's own
+   in-text annotation glyphs. */
+/* table/table-cell, not inline: a line carrying BOTH a ruku' close and a
+   sajdah needs them STACKED. Side by side they measure ~94px against an
+   84px gutter, so the second one wrapped out of the frame entirely
+   (caught in the rendered page, 2026-09-18). */
+.fxl-mark {
+    position: absolute;
+    display: table;
+    text-align: center;
+    font-family: '{{ symbol_font_family }}', serif;
+    color: #6b5f4a;
+}
+.fxl-mark-in {
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 1;
+}
+.fxl-ruku {
+    display: block;
+    text-align: center;
+}
+.fxl-ruku-ayn {
+    display: block;
+    font-size: 46px;
+    line-height: 1.05;
+}
+.fxl-ruku-num {
+    display: block;
+    font-size: 26px;
+    line-height: 1.1;
+}
+.fxl-sajdah {
+    display: block;
+    font-size: 24px;
+    line-height: 1.1;
+    margin-top: 5px;
+}
+
+.fxl-folio {
+    position: absolute;
+    left: 0;
+    width: {{ fxl_page_w }}px;
+    height: 44px;
+    line-height: 44px;
+    text-align: center;
+    font-family: '{{ symbol_font_family }}', serif;
+    font-size: 36px;
+    color: #6b6b6b;
+}
+.fxl-folio-en {
+    font-size: 28px;
+    color: #8a8a8a;
+}
+
+/* Tajweed colour key in the bottom margin, as a printed IndoPak mushaf
+   carries it. The rules are split across facing pages so a single strip
+   never has to hold all seven. */
+.fxl-legend {
+    position: absolute;
+    text-align: center;
+    font-family: '{{ font_family }}', serif;
+    font-size: 34px;
+    color: #4a4235;
+    white-space: nowrap;
+}
+.fxl-key {
+    display: inline-block;
+    margin: 0 26px;
+    vertical-align: middle;
+}
+.fxl-dot {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-left: 12px;
+    border: 1px solid rgba(0,0,0,.18);
+}
+
+/* --- Tajweed palettes, one per scheme -----------------------------------
+   The .tj-* rules further up are the QPC Uthmani scheme: QUL's own 18-rule
+   colours, used by configs-tajweed/ (Naskh, full rule set including madd
+   and the silent/wasl letters).
+
+   Below is the Qudratullah IndoPak scheme, which is a different publisher
+   with a different palette AND a smaller rule set (7 rules; madd and the
+   silent letters are left black because IndoPak orthography already
+   notates madd). A page opts in by carrying tj-scheme-qudratullah on its
+   body, so the two can never bleed into one another. */
+.tj-scheme-qudratullah .tj-ikhafa         { color: #438851; }
+.tj-scheme-qudratullah .tj-ikhafa_shafawi { color: #C9C856; }
+.tj-scheme-qudratullah .tj-qalaqah        { color: #E7570C; }
+.tj-scheme-qudratullah .tj-iqlab          { color: #7F4669; }
+.tj-scheme-qudratullah .tj-idgham_ghunnah { color: #ec0f0f; }
+.tj-scheme-qudratullah .tj-idgham_shafawi { color: #F3A3B2; }
+.tj-scheme-qudratullah .tj-ghunnah        { color: #289FEA; }

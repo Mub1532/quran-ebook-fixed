@@ -19,6 +19,7 @@ from .epub.builder import build_epub
 
 _AYAH_ID_RE = re.compile(r'id="ayah-(\d+)-(\d+)"')
 _MIN_COVER_BYTES = 1000  # Cover PNG should be at least 1KB
+_FXL_TOTAL_PAGES = 610  # pre-paginated IndoPak mushaf: one file per page
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
@@ -347,26 +348,48 @@ def _verify_epub_content(epub_path: Path) -> list[str]:
         with zipfile.ZipFile(epub_path) as zf:
             names = set(zf.namelist())
 
-            # Check 114 chapter files
+            # Content files: reflowable books are one per surah, the
+            # pre-paginated mushaf is one per PAGE (a page two surahs
+            # share must be a single file), so the per-surah ayah tally
+            # only applies to the former.
             chapter_files = sorted(
                 n for n in names if n.startswith("OEBPS/chapter-") and n.endswith(".xhtml")
             )
-            if len(chapter_files) != 114:
-                errors.append(f"Expected 114 chapter files, found {len(chapter_files)}")
-
-            # Check ayah counts per chapter
+            page_files = sorted(
+                n for n in names if n.startswith("OEBPS/page-") and n.endswith(".xhtml")
+            )
             total_ayahs = 0
-            for chapter_file in chapter_files:
-                content = zf.read(chapter_file).decode("utf-8")
-                matches = _AYAH_ID_RE.findall(content)
-                surah_num = int(chapter_file.split("chapter-")[1].split(".")[0])
-                actual = len(matches)
-                total_ayahs += actual
-                expected = ayah_counts.get(surah_num)
-                if expected is not None and actual != expected:
+            if page_files and not chapter_files:
+                if len(page_files) != _FXL_TOTAL_PAGES:
                     errors.append(
-                        f"chapter-{surah_num}: expected {expected} ayahs, got {actual}"
+                        f"Expected {_FXL_TOTAL_PAGES} page files, found {len(page_files)}"
                     )
+                per_surah: dict[int, int] = {}
+                for page_file in page_files:
+                    content = zf.read(page_file).decode("utf-8")
+                    for surah_s, _ayah_s in _AYAH_ID_RE.findall(content):
+                        per_surah[int(surah_s)] = per_surah.get(int(surah_s), 0) + 1
+                        total_ayahs += 1
+                for surah_num, expected in ayah_counts.items():
+                    actual = per_surah.get(surah_num, 0)
+                    if actual != expected:
+                        errors.append(
+                            f"surah {surah_num}: expected {expected} ayahs, got {actual}"
+                        )
+            else:
+                if len(chapter_files) != 114:
+                    errors.append(f"Expected 114 chapter files, found {len(chapter_files)}")
+                for chapter_file in chapter_files:
+                    content = zf.read(chapter_file).decode("utf-8")
+                    matches = _AYAH_ID_RE.findall(content)
+                    surah_num = int(chapter_file.split("chapter-")[1].split(".")[0])
+                    actual = len(matches)
+                    total_ayahs += actual
+                    expected = ayah_counts.get(surah_num)
+                    if expected is not None and actual != expected:
+                        errors.append(
+                            f"chapter-{surah_num}: expected {expected} ayahs, got {actual}"
+                        )
 
             if total_ayahs != expected_total:
                 errors.append(f"Total ayahs: expected {expected_total}, got {total_ayahs}")

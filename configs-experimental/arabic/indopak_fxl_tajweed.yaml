@@ -1,0 +1,36 @@
+# Fixed 15-line IndoPak mushaf (Qudratullah grid) WITH tajweed colouring.
+#
+# Same canvas and grid as indopak_fxl.yaml; the difference is
+# layout.tajweed, which colours the seven rules the Qudratullah mushaf
+# marks (ikhfa, ikhfa meem saakin, idghaam, idghaam meem saakin, qalb,
+# qalqala, ghunna) in that publisher's own palette, and prints the colour
+# key across the bottom margin of facing pages.
+#
+# Rules come from the QUL word-by-word tajweed export, which must be at
+# docs/qpc-hafs-tajweed.json-word-by-word.zip (free QUL login; docs/ is
+# gitignored). The build fails loudly if it is missing rather than
+# quietly shipping an uncoloured book.
+#
+# A rule is transferred only where the IndoPak and Uthmani spellings
+# correspond letter-for-letter; roughly 9% of rule-bearing words do not,
+# and are deliberately left black rather than coloured on a guess.
+book:
+  title: "القرآن الکریم"
+  language: "ar"
+
+quran:
+  script: "text_indopak_nastaleeq"
+  source: "quran_api"
+
+font:
+  arabic: "indopak_nastaleeq"
+
+layout:
+  structure: "indopak_fxl"
+  tajweed: true
+  show_ayah_numbers: true
+  show_bismillah: true
+
+output:
+  directory: "output"
+  status: "experimental"

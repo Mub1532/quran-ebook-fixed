@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ar" lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8"/>
+    <title>سورة {{ surah.name_arabic }}</title>
+    <link rel="stylesheet" type="text/css" href="styles/base.css"/>
+</head>
+<body>
+{%- for page in pages %}
+    <div class="mushaf-page{% if not loop.last %} page-break{% endif %}">
+{%- if page.starts_page %}<span epub:type="pagebreak" role="doc-pagebreak" id="page{{ page.page_number }}" title="{{ page.page_number }}"></span>{% endif %}
+    <div class="mushaf-frame">
+{%- for line in page.lines %}
+{%- if line.type == 'surah_name' %}
+        <div class="ipk-line ipk-surah" id="surah-{{ line.surah }}"><span class="ipk-surah-band">سورة {{ surah.name_arabic }}</span></div>
+{%- elif line.type == 'basmallah' %}
+        <div class="ipk-line ipk-basmallah">{{ bismillah_text }}</div>
+{%- else %}
+        <div class="ipk-line{% if line.centered %} ipk-centered{% endif %}">{% for tok in line.tokens %}{% if tok.kind == 'end' %}&#8288;<a class="ayah-mark-link" href="#ayah-{{ tok.surah }}-{{ tok.ayah }}"><span class="ayah-mark" id="ayah-{{ tok.surah }}-{{ tok.ayah }}">{{ tok.text }}</span></a>&#x200B;{% else %}{% if not loop.first %} {% endif %}{% if tok.hizb %}&#x200B;<span class="hizb-marker">۞</span>&#8288;{% endif %}{{ tok.text }}{% endif %}{% endfor %}</div>
+{%- endif %}
+{%- endfor %}
+    </div>
+    <div class="mushaf-folio">{{ page.page_number | arabic_numerals }}</div>
+    </div>
+{%- endfor %}
+</body>
+</html>

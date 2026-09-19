@@ -784,6 +784,7 @@ def load_quran_qcf(
                     text=ayah_text,
                     page_number=v.get("page_number"),
                     juz_number=v.get("juz_number"),
+                    ruku_number=v.get("ruku_number"),
                     hizb_quarter=v.get("rub_el_hizb_number"),
                     sajdah=v.get("sajdah_number") is not None,
                     hizb_marker=has_hizb,
@@ -1151,6 +1152,7 @@ def load_quran(
                         if indopak_pages else v.get("page_number")
                     ),
                     juz_number=v.get("juz_number"),
+                    ruku_number=v.get("ruku_number"),
                     hizb_quarter=v.get("rub_el_hizb_number"),
                     sajdah=v.get("sajdah_number") is not None,
                     hizb_marker=has_hizb,

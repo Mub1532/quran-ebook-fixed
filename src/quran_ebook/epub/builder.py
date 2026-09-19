@@ -861,6 +861,23 @@ def _render_package_opf(
     modified = modified_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     version = _get_version()
 
+    # EPUB3 pre-paginated: the reader must honour the per-page viewport
+    # and change nothing about size or spacing. Declared once here; the
+    # geometry itself lives in each page file.
+    is_fxl = config.layout.structure == "indopak_fxl"
+    fxl_meta = ""
+    if is_fxl:
+        # Only `layout` is asserted. `spread` is left at its default
+        # (auto) so the reader may offer single-page AND two-page views —
+        # spread:none forbids spreads outright and makes readers grey the
+        # control out. `orientation` is deliberately NOT set: the W3C FXL
+        # accessibility note says a fixed orientation overrides the
+        # reader's own preference (WCAG 1.3.4), and its default is auto.
+        fxl_meta = (
+            '\n    <meta property="rendition:layout">pre-paginated</meta>'
+            '\n    <meta property="rendition:spread">auto</meta>'
+        )
+
     manifest_items = []
     spine_items = []
 
@@ -880,10 +897,24 @@ def _render_package_opf(
     manifest_items.append(
         '<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>'
     )
-    spine_items.append('<itemref idref="cover"/>')
+    spine_items.append(
+        '<itemref idref="cover" properties="rendition:page-spread-center"/>'
+        if is_fxl else '<itemref idref="cover"/>'
+    )
 
     # TOC in spine (visible as readable page, not just nav menu)
-    spine_items.append('<itemref idref="toc"/>')
+    # The TOC is a multi-page table; a pre-paginated spine item is
+    # exactly ONE page, so in a fixed-layout book it would be clipped.
+    # It stays the nav document (reader TOC menu still works) but leaves
+    # the reading flow.
+    # ...and it must opt OUT of pre-paginated explicitly: the global
+    # rendition:layout applies to every spine document, and epubcheck
+    # rejects a pre-paginated document with no viewport (HTM-046).
+    spine_items.append(
+        '<itemref idref="toc" linear="no" '
+        'properties="rendition:layout-reflowable"/>' if is_fxl
+        else '<itemref idref="toc"/>'
+    )
 
     # Chapters (+ endnotes as non-linear)
     for item_id, href in chapter_items:
@@ -893,6 +924,24 @@ def _render_package_opf(
         )
         if item_id == "endnotes":
             spine_items.append(f'<itemref idref="{item_id}" linear="no"/>')
+        elif is_fxl and item_id == "blank-front":
+            # Closes the cover's spread (left is the last slot in RTL),
+            # so page 1 opens a fresh one on the right.
+            spine_items.append(
+                f'<itemref idref="{item_id}" '
+                f'properties="rendition:page-spread-left"/>'
+            )
+        elif is_fxl and item_id.startswith("page-"):
+            # Which slot of a two-page spread this page belongs in. The
+            # mushaf's own pairing: page 1 (Al-Fatiha) faces page 2 (the
+            # opening of Al-Baqarah), so odd pages sit on the right and
+            # even on the left — and with page-progression-direction rtl
+            # the right page of a spread is the one read first.
+            side = "right" if int(item_id.split("-")[1]) % 2 else "left"
+            spine_items.append(
+                f'<itemref idref="{item_id}" '
+                f'properties="rendition:page-spread-{side}"/>'
+            )
         else:
             spine_items.append(f'<itemref idref="{item_id}"/>')
 
@@ -979,7 +1028,7 @@ def _render_package_opf(
     <dc:rights>Quran text and translation sourced from Quran.com API</dc:rights>
     <meta property="dcterms:modified">{modified}</meta>
     <meta name="generator" content="quran-ebook {version}"/>
-    <meta name="primary-writing-mode" content="horizontal-rl"/>
+    <meta name="primary-writing-mode" content="horizontal-rl"/>{fxl_meta}
     <meta name="cover" content="cover-image"/>
   </metadata>
   <manifest>
@@ -1066,7 +1115,13 @@ def build_epub(config: BuildConfig) -> Path:
     layout = config.layout.structure
     # WBW layout needs word-level data; use explicit gloss language, translation language, or English
     wbw_language = None
-    if layout in ("wbw", "wbw_popup"):
+    if layout in ("indopak_fixed", "indopak_fixed_interactive", "indopak_fxl"):
+        # Not a word-by-word book: the fixed layout needs the word-level
+        # fetch only for its per-ayah word COUNTS, which anchor the QUL
+        # global word-id model (see data/indopak_lines). Display text is
+        # still derived from the verse body, as in every IndoPak layout.
+        wbw_language = "en"
+    elif layout in ("wbw", "wbw_popup"):
         wbw_language = (
             config.layout.wbw_gloss_language
             or (config.translation.language if config.translation else "en")
@@ -1227,6 +1282,10 @@ def build_epub(config: BuildConfig) -> Path:
         "justify": "text-align: justify;\n    text-align-last: right;",
     }[config.layout.ayah_align]
     css_text = css_text.replace("{{ ayah_text_align_css }}", ayah_align_css)
+    # Fixed-layout canvas — one source of truth (data/indopak_fxl).
+    from ..data.indopak_fxl import PAGE_H as _FXLH, PAGE_W as _FXLW
+    css_text = css_text.replace("{{ fxl_page_w }}", str(_FXLW))
+    css_text = css_text.replace("{{ fxl_page_h }}", str(_FXLH))
 
     # 5b. QCF per-page font CSS (604 @font-face rules + per-page classes)
     if is_qcf:
@@ -1285,7 +1344,14 @@ def build_epub(config: BuildConfig) -> Path:
         # the flowing book's inside cover otherwise looks identical.
         layout_descriptor = LAYOUT_LABELS[layout][1]
 
+    # Local import: matches this file's convention for layout-specific
+    # modules, and keeps the module header's import block as it was.
+    from ..data.indopak_fxl import PAGE_H as _FXL_PAGE_H, PAGE_W as _FXL_PAGE_W
+
+    _fxl = layout == "indopak_fxl"
     cover_html = cover_template.render(
+        fxl_w=_FXL_PAGE_W if _fxl else None,
+        fxl_h=_FXL_PAGE_H if _fxl else None,
         title=config.book.title,
         subtitle=subtitle,
         font_family=font_info.family,
@@ -1338,6 +1404,28 @@ def build_epub(config: BuildConfig) -> Path:
         translation_dir = get_language_direction(config.translation.language)
         chapter_items, href_fn, page_href_fn, chapter_href = _build_qcf_fixed_interactive(
             env, mushaf, files, bismillah, config.translation.language, translation_dir
+        )
+    elif layout == "indopak_fxl":
+        chapter_items, href_fn, page_href_fn, chapter_href = _build_indopak_fxl(
+            env, mushaf, files, bismillah, config
+        )
+    elif layout == "indopak_fixed_interactive":
+        if not config.translation:
+            raise ValueError(
+                "indopak_fixed_interactive layout requires a translation "
+                "config — the translation IS the popup content "
+                "(use indopak_fixed for the bare mushaf)"
+            )
+        translation_dir = get_language_direction(config.translation.language)
+        chapter_items, href_fn, page_href_fn, chapter_href = (
+            _build_indopak_fixed_interactive(
+                env, mushaf, files, bismillah,
+                config.translation.language, translation_dir,
+            )
+        )
+    elif layout == "indopak_fixed":
+        chapter_items, href_fn, page_href_fn, chapter_href = _build_indopak_fixed(
+            env, mushaf, files, bismillah
         )
     elif layout == "qcf_inline":
         chapter_items, href_fn, page_href_fn, chapter_href = _build_qcf(
@@ -1772,6 +1860,273 @@ def _build_qcf_fixed_interactive(env, mushaf, files, bismillah, translation_lang
 
     def chapter_href(n):
         return f"chapter-{n}.xhtml"
+
+    return chapter_items, href_fn, page_href_fn, chapter_href
+
+
+def _build_indopak_fixed(env, mushaf, files, bismillah):
+    """Build the fixed 15-line Qudratullah mushaf layout (IndoPak).
+
+    Line breaks come from the QUL layout db via ``indopak_lines``; each
+    mushaf page becomes its own EPUB page (page-break-after), so a short
+    page — Al-Fatiha's 8 lines, Al-Baqarah's opening 8, the closing 10 —
+    simply ends where the mushaf ends it.
+
+    The 75 pages that a surah boundary falls inside appear in both
+    surahs' chapter files, so those render as two reader pages: chapter
+    files are per-surah here (the repo-wide convention that the TOC,
+    ``validate`` and the KOReader plugin all rely on), and every spine
+    item necessarily starts a fresh page.
+    """
+    from ..data.indopak_lines import build_pages
+
+    click.echo("Rendering 114 surahs (IndoPak fixed 15-line mushaf)...")
+
+    surah_pages = build_pages(mushaf)
+    template = env.get_template("chapter_indopak_fixed.xhtml.j2")
+    chapter_items = []
+    seen_pages: set[int] = set()
+
+    for surah in mushaf.surahs:
+        pages = surah_pages[surah.number]
+        # The pagebreak nav target belongs to whichever chapter file opens
+        # that mushaf page, so the page-list has one entry per page.
+        for page in pages:
+            page["starts_page"] = page["page_number"] not in seen_pages
+            seen_pages.add(page["page_number"])
+        chapter_html = template.render(
+            surah=surah, bismillah_text=bismillah, pages=pages,
+        )
+        files[f"OEBPS/chapter-{surah.number}.xhtml"] = chapter_html.encode("utf-8")
+        chapter_items.append((f"chapter-{surah.number}", f"chapter-{surah.number}.xhtml"))
+
+    def href_fn(s, a):
+        return f"chapter-{s}.xhtml#ayah-{s}-{a}"
+
+    def page_href_fn(s, p):
+        return f"chapter-{s}.xhtml#page{p}"
+
+    def chapter_href(n):
+        return f"chapter-{n}.xhtml"
+
+    return chapter_items, href_fn, page_href_fn, chapter_href
+
+
+def _build_indopak_fixed_interactive(
+    env, mushaf, files, bismillah, translation_lang, translation_dir
+):
+    """Fixed 15-line mushaf whose ayah markers are translation noterefs.
+
+    The grid is identical to ``_build_indopak_fixed``; the only difference
+    is that each ayah's end marker becomes an EPUB3 noteref pointing at
+    its endnote, so KOReader pops the translation up on tap without
+    disturbing a single line break. Translator footnotes are inlined into
+    the same note (KOReader popups can't follow nested links).
+    """
+    from ..data.indopak_lines import build_pages
+
+    click.echo("Rendering 114 surahs (IndoPak fixed 15-line mushaf, tap-translation)...")
+
+    surah_pages = build_pages(mushaf)
+    template = env.get_template("chapter_indopak_fixed_interactive.xhtml.j2")
+    endnotes_template = env.get_template("endnotes.xhtml.j2")
+    chapter_items = []
+    seen_pages: set[int] = set()
+
+    for surah in mushaf.surahs:
+        pages = surah_pages[surah.number]
+        for page in pages:
+            page["starts_page"] = page["page_number"] not in seen_pages
+            seen_pages.add(page["page_number"])
+        chapter_html = template.render(
+            surah=surah, bismillah_text=bismillah, pages=pages,
+        )
+        files[f"OEBPS/chapter-{surah.number}.xhtml"] = chapter_html.encode("utf-8")
+        chapter_items.append((f"chapter-{surah.number}", f"chapter-{surah.number}.xhtml"))
+
+    translation_notes = [
+        {
+            "surah": surah.number,
+            "ayah": ayah.ayah_number,
+            "text": _strip_noteref_links(ayah.translation),
+            "footnotes": list(ayah.footnotes),
+        }
+        for surah in mushaf.surahs
+        for ayah in surah.ayahs
+        if ayah.translation
+    ]
+    endnotes_html = endnotes_template.render(
+        translation_notes=translation_notes,
+        footnotes=[],
+        endnotes_lang=translation_lang,
+        endnotes_dir=translation_dir,
+    )
+    files["OEBPS/endnotes.xhtml"] = endnotes_html.encode("utf-8")
+    chapter_items.append(("endnotes", "endnotes.xhtml"))
+
+    def href_fn(s, a):
+        return f"chapter-{s}.xhtml#ayah-{s}-{a}"
+
+    def page_href_fn(s, p):
+        return f"chapter-{s}.xhtml#page{p}"
+
+    def chapter_href(n):
+        return f"chapter-{n}.xhtml"
+
+    return chapter_items, href_fn, page_href_fn, chapter_href
+
+
+def _fxl_page_href(page_number: int) -> str:
+    return f"page-{page_number:03d}.xhtml"
+
+
+def _apply_tajweed(pages, mushaf):
+    """Colour every word in-place with the Qudratullah tajweed scheme.
+
+    Returns (marks, coloured, skipped) for the build log — `skipped` is
+    words carrying a rule whose IndoPak spelling does not correspond
+    letter-for-letter to the Uthmani one, which are left black on purpose.
+    """
+    from ..data.indopak_lines import _first_ids, _token_ids
+    from ..data.tajweed import (
+        QUDRATULLAH_RULES, is_stop_word, load_tajweed_words, map_word,
+    )
+
+    words = load_tajweed_words()
+    first = _first_ids(mushaf)
+    # Global word ids per ayah, computed ONCE. Deriving them per word is
+    # what makes this pass unusably slow across 77k words.
+    ids_by_ayah = {}
+    n_words = {}
+    for surah in mushaf.surahs:
+        for ayah in surah.ayahs:
+            key = (surah.number, ayah.ayah_number)
+            n_words[key] = len(ayah.words)
+            ids_by_ayah[key] = _token_ids(
+                key[0], key[1], len(ayah.words), first[key]
+            )
+    marks = coloured = skipped = 0
+    for page in pages.values():
+        seen: dict[tuple[int, int], int] = {}
+        for line in page["lines"]:
+            for tok in line["tokens"]:
+                if tok["kind"] != "word":
+                    continue
+                key = (tok["surah"], tok["ayah"])
+                seen[key] = seen.get(key, 0) + 1
+                idx = seen[key] - 1
+                gid = ids_by_ayah[key][idx]
+                html, status = map_word(
+                    words[gid], tok["text"], allowed=QUDRATULLAH_RULES,
+                    stop=is_stop_word(tok["text"], idx == n_words[key] - 1),
+                )
+                tok["text"] = html
+                marks += html.count('<span class="tj-')
+                if status == "exact":
+                    coloured += 1
+                elif status == "skipped":
+                    skipped += 1
+    return marks, coloured, skipped
+
+
+def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
+    """Build the TRUE fixed-layout 15-line mushaf: one file per page.
+
+    Unlike every other layout here, chapter files are per-PAGE, not
+    per-surah — EPUB3 pre-paginated binds one spine item to one rendered
+    page, so a mushaf page that two surahs share has to live in a single
+    file or it would render as two pages. That is also why a shared page
+    no longer splits the way the reflowable ``indopak_fixed`` layout
+    splits it.
+
+    Each page carries its own viewport meta and its own geometry (font
+    size, measure, leading, frame box) computed by ``indopak_fxl`` from
+    the measured width of that page's widest line.
+    """
+    from ..data.indopak_fxl import PAGE_H, PAGE_W, page_geometry
+    from ..data.indopak_lines import build_whole_pages
+    from ..data.indopak_pages import load_indopak_page_map
+
+    click.echo(f"Rendering 610 pages (IndoPak TRUE fixed layout, {PAGE_W}x{PAGE_H})...")
+
+    pages = build_whole_pages(mushaf)
+    surah_names = {s.number: s.name_arabic for s in mushaf.surahs}
+    template = env.get_template("page_indopak_fxl.xhtml.j2")
+
+    tajweed = bool(config and config.layout.tajweed)
+    scheme = legend_halves = None
+    if tajweed:
+        from ..data.tajweed import SCHEME, QUDRATULLAH_PALETTE
+        marks, ok, skipped = _apply_tajweed(pages, mushaf)
+        scheme = SCHEME
+        keys = [(colour, label) for _, colour, label in QUDRATULLAH_PALETTE]
+        # The key is split across facing pages, as the printed mushaf sets
+        # it — a single strip would not hold all seven.
+        legend_halves = (keys[:4], keys[4:])
+        click.echo(
+            f"  Tajweed ({scheme}): {marks:,} marks, {ok:,} words matched "
+            f"1:1, {skipped:,} left black (no letter correspondence)"
+        )
+
+    from ..config.registry import JUZ_NAMES
+
+    # A blank leaf between the cover and page 1. Without it the cover
+    # takes the slot facing Al-Fatiha, so p1 and p2 land in different
+    # spreads; the printed mushaf opens with Al-Fatiha and the start of
+    # Al-Baqarah FACING each other. The filler makes that pairing hold
+    # both for readers that honour rendition:page-spread-* and for ones
+    # that simply chunk the spine two at a time.
+    files["OEBPS/blank-front.xhtml"] = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<!DOCTYPE html>\n'
+        '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" lang="ar"'
+        ' dir="rtl">\n<head>\n    <meta charset="utf-8"/>\n'
+        f'    <meta name="viewport" content="width={PAGE_W}, height={PAGE_H}"/>\n'
+        '    <title>\u2014</title>\n'  # non-empty: epubcheck RSC-005
+        '    <link rel="stylesheet" type="text/css" href="styles/base.css"/>\n'
+        '</head>\n<body class="fxl-body"><div class="fxl-page"></div></body>\n'
+        '</html>\n'
+    ).encode("utf-8")
+
+    chapter_items = [("blank-front", "blank-front.xhtml")]
+    for page_number in sorted(pages):
+        page = pages[page_number]
+        geo = page_geometry(page_number, len(page["lines"]),
+                            legend=bool(legend_halves))
+        # Running head follows the page's first ayah line: the surah it
+        # opens in, and the para that line belongs to.
+        first_ayah_line = next(
+            (ln for ln in page["lines"] if ln["type"] == "ayah"), None
+        )
+        head = {
+            "surah": first_ayah_line["surah"] if first_ayah_line
+            else page["lines"][0]["surah"],
+            "juz": (first_ayah_line or {}).get("juz") or 1,
+        }
+        html = template.render(
+            page=page, geo=geo, page_number=page_number, head=head,
+            surah_names=surah_names, juz_names=JUZ_NAMES,
+            bismillah_text=bismillah, tajweed_scheme=scheme,
+            legend=(legend_halves[page_number % 2] if legend_halves else None),
+            page_w=PAGE_W, page_h=PAGE_H,
+        )
+        href = _fxl_page_href(page_number)
+        files[f"OEBPS/{href}"] = html.encode("utf-8")
+        chapter_items.append((f"page-{page_number:03d}", href))
+
+    ayah_pages = load_indopak_page_map()
+    surah_start_page = {
+        s.number: ayah_pages[(s.number, 1)] for s in mushaf.surahs
+    }
+
+    def href_fn(s, a):
+        return f"{_fxl_page_href(ayah_pages[(s, a)])}#ayah-{s}-{a}"
+
+    def page_href_fn(s, p):
+        return f"{_fxl_page_href(p)}#page{p}"
+
+    def chapter_href(n):
+        return f"{_fxl_page_href(surah_start_page[n])}#surah-{n}"
 
     return chapter_items, href_fn, page_href_fn, chapter_href
 

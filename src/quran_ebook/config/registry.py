@@ -237,6 +237,9 @@ LAYOUT_LABELS: dict[str, tuple[str, str]] = {
     "qcf_by_surah": ("QCF glyph ayah-by-ayah", "خط مصحف · آية بآية"),
     "qcf_interactive": ("QCF glyph interactive", "خط مصحف"),
     "qcf_fixed": ("QCF mushaf layout", "خط مصحف"),
+    "indopak_fixed": ("15-line mushaf layout", "مصحف ١٥ سطرًا"),
+    "indopak_fixed_interactive": ("15-line mushaf + tap-translation", "مصحف ١٥ سطرًا"),
+    "indopak_fxl": ("15-line fixed-layout mushaf", "مصحف ١٥ سطرًا"),
     "qcf_fixed_interactive": ("QCF mushaf interactive", "خط مصحف"),
     "bilingual_interactive": ("ayah-by-ayah + tafsir popup", "آية بآية"),
 }
@@ -498,3 +501,46 @@ def abbreviate(category: str, key: str) -> str:
     }
     table = tables.get(category, {})
     return table.get(key, key)
+
+
+# --- Para (juz') names, Indo-Pak convention ------------------------------
+# Each para is known by its opening word(s). Cross-checked 2026-09-18
+# against the actual juz'-opening ayah of every juz': 22 of the 30 match
+# the opening words exactly. The 8 that do not (1, 4, 7, 11, 14, 20, 21,
+# 23) are the known cases where the subcontinent para boundary sits an
+# ayah or two away from the Quran.com juz' boundary — para 1 is the
+# clearest, named for the opening of Al-Baqarah while juz' 1 starts at
+# Al-Fatiha. The traditional NAME is what a 15-line mushaf prints in its
+# header, so the name is what this table carries.
+JUZ_NAMES: dict[int, str] = {
+    1: "الم",
+    2: "سيقول",
+    3: "تلك الرسل",
+    4: "لن تنالوا",
+    5: "والمحصنات",
+    6: "لا يحب الله",
+    7: "وإذا سمعوا",
+    8: "ولو أننا",
+    9: "قال الملأ",
+    10: "واعلموا",
+    11: "يعتذرون",
+    12: "وما من دابة",
+    13: "وما أبرئ",
+    14: "ربما",
+    15: "سبحان الذي",
+    16: "قال ألم",
+    17: "اقترب للناس",
+    18: "قد أفلح",
+    19: "وقال الذين",
+    20: "أمن خلق",
+    21: "اتل ما أوحي",
+    22: "ومن يقنت",
+    23: "وما لي",
+    24: "فمن أظلم",
+    25: "إليه يرد",
+    26: "حم",
+    27: "قال فما خطبكم",
+    28: "قد سمع الله",
+    29: "تبارك الذي",
+    30: "عم",
+}
