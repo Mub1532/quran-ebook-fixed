@@ -1,3 +1,9 @@
+forked version to add fixed layout EPUB, 15 line indo pak versions
+Fixed Layout EPUB made best for the aspect ratio of Z fold devices (book style fold)
+Tajweed rules added also, WIP.
+
+this repo is not a true fork, it has changed a lot of things, things may be broken from the original repo, so please do not use this as a base and use the original authors.
+
 <div align="center">
 
 <h3>الحمد لله رب العالمين، والصلاة والسلام على سيدنا محمد خاتم النبيين وإمام المرسلين</h3>
