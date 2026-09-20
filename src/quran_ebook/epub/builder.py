@@ -1980,7 +1980,15 @@ def _fxl_page_href(page_number: int) -> str:
     return f"page-{page_number:03d}.xhtml"
 
 
-def _apply_tajweed(pages, mushaf):
+def _hidden_marks(html: str) -> int:
+    """Coloured spans inside an overlay's top (black, aria-hidden) copy."""
+    total = 0
+    for part in html.split('<span class="tj-o" aria-hidden="true">')[1:]:
+        total += part.split("</span></span>")[0].count('<span class="tj-')
+    return total
+
+
+def _apply_tajweed(pages, mushaf, tanween_span="letter"):
     """Colour every word in-place with the Qudratullah tajweed scheme.
 
     Returns (marks, coloured, skipped) for the build log — `skipped` is
@@ -2008,6 +2016,10 @@ def _apply_tajweed(pages, mushaf):
     marks = coloured = skipped = 0
     for page in pages.values():
         seen: dict[tuple[int, int], int] = {}
+        # A pause cancels a cross-word rule on BOTH sides of it, so each
+        # word needs to know whether a stop follows it and whether one
+        # preceded it. Tracked across the page in reading order.
+        prev_was_stop = False
         for line in page["lines"]:
             for tok in line["tokens"]:
                 if tok["kind"] != "word":
@@ -2016,12 +2028,23 @@ def _apply_tajweed(pages, mushaf):
                 seen[key] = seen.get(key, 0) + 1
                 idx = seen[key] - 1
                 gid = ids_by_ayah[key][idx]
+                stop = is_stop_word(tok["text"], idx == n_words[key] - 1)
                 html, status = map_word(
                     words[gid], tok["text"], allowed=QUDRATULLAH_RULES,
-                    stop=is_stop_word(tok["text"], idx == n_words[key] - 1),
+                    stop=stop, tanween_span=tanween_span,
+                    break_after=stop, break_before=prev_was_stop,
                 )
                 tok["text"] = html
-                marks += html.count('<span class="tj-')
+                prev_was_stop = stop
+                # Count VISIBLE marks only. A mark-mode tanween carrier is
+                # emitted twice -- coloured underneath, black copy on top --
+                # so counting every tj- span would double-count it and
+                # report a number nobody can see on the page.
+                marks += (html.count('<span class="tj-')
+                          - html.count('<span class="tj-ov"')
+                          - html.count('<span class="tj-u"')
+                          - html.count('<span class="tj-o"')
+                          - _hidden_marks(html))
                 if status == "exact":
                     coloured += 1
                 elif status == "skipped":
@@ -2057,7 +2080,9 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
     scheme = legend_halves = None
     if tajweed:
         from ..data.tajweed import SCHEME, QUDRATULLAH_PALETTE
-        marks, ok, skipped = _apply_tajweed(pages, mushaf)
+        marks, ok, skipped = _apply_tajweed(
+            pages, mushaf, config.layout.tajweed_tanween
+        )
         scheme = SCHEME
         keys = [(colour, label) for _, colour, label in QUDRATULLAH_PALETTE]
         # The key is split across facing pages, as the printed mushaf sets
@@ -2065,7 +2090,8 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
         legend_halves = (keys[:4], keys[4:])
         click.echo(
             f"  Tajweed ({scheme}): {marks:,} marks, {ok:,} words matched "
-            f"1:1, {skipped:,} left black (no letter correspondence)"
+            f"1:1, {skipped:,} left black (no letter correspondence); "
+            f"tanween carrier = {config.layout.tajweed_tanween}"
         )
 
     from ..config.registry import JUZ_NAMES

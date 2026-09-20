@@ -28,6 +28,7 @@ font:
 layout:
   structure: "indopak_fxl"
   tajweed: true
+  tajweed_tanween: mark
   show_ayah_numbers: true
   show_bismillah: true
 

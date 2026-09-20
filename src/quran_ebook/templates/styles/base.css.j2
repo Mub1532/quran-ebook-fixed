@@ -701,6 +701,31 @@ table.bismillah-table td {
     border: 1px solid rgba(0,0,0,.18);
 }
 
+/* Mark-only tanween colouring (layout.tajweed_tanween: mark).
+   Engines paint a lone combining mark with its base letter's colour
+   rather than its own, so the mark is never coloured directly: the whole
+   cluster is drawn coloured underneath, and an identical black copy with
+   the tanween removed sits exactly on top, leaving only the mark showing.
+
+   The wrapper is per WORD. Arabic joins within a word but not across
+   spaces, so an inline-block word keeps every cursive join; wrapping a
+   single cluster would sever them. The top copy is aria-hidden and
+   unselectable so the duplicated text never reaches selection, search or
+   a dictionary lookup. */
+.tj-ov {
+    position: relative;
+    display: inline-block;
+}
+.tj-ov .tj-o {
+    position: absolute;
+    right: 0;
+    top: 0;
+    color: #000;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: none;
+}
+
 /* --- Tajweed palettes, one per scheme -----------------------------------
    The .tj-* rules further up are the QPC Uthmani scheme: QUL's own 18-rule
    colours, used by configs-tajweed/ (Naskh, full rule set including madd

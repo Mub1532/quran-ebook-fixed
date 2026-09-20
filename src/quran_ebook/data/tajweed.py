@@ -61,7 +61,11 @@ def load_tajweed_words() -> dict[int, str]:
     return words
 
 
-RULE_OPEN = re.compile(r'<rule class=([a-z_]+)>')
+# QUL's export is not uniform: most spans write class=X bare, but 2,661
+# of them (1,373 words, 3.8% of the data) quote it as class='X'. A regex
+# that only matches the bare form drops those rules silently. The repo's
+# qul_tajweed.py already allows for this; match it.
+RULE_OPEN = re.compile(r"""<rule\s+class=['"]?([a-z_]+)['"]?[^>]*>""")
 RULE_CLOSE = '</rule>'
 def PUA(ch: str) -> bool:
     """A Private Use Area codepoint — a font glyph, never a letter."""
@@ -128,6 +132,15 @@ QUDRATULLAH_RULES = {
 # the trigger is identified by its shaddah, since an assimilated trigger is
 # always doubled while a carrier never is.
 DROP_TRIGGER_RULES = {"ikhafa", "ikhafa_shafawi", "iqlab"}
+
+# Rules whose carrier and trigger sit in DIFFERENT words. None of them can
+# occur across a pause: if a stop mark separates the two, the reciter stops
+# and no assimilation happens, so neither half is coloured (owner,
+# 2026-09-20, from جَمِيعًا ؕ وَعْدَ).
+CROSSWORD_RULES = {
+    "ikhafa", "ikhafa_shafawi", "iqlab",
+    "idgham_ghunnah", "idgham_shafawi",
+}
 _TANWEEN = "\u064B\u064C\u064D"
 _SHADDA = "\u0651"
 _NOON_MEEM = "\u0646\u0645"
@@ -151,7 +164,9 @@ def _is_carrier(base: str, cluster: str) -> bool:
 # Pause symbols and other free-standing annotations. They ride in a
 # letter's cluster (the loader rebases them on a NBSP after the word) but
 # they are not part of the letter, so a colour span must stop before them.
-WAQF_SYMBOLS = set("\u06D6\u06D7\u06D8\u06D9\u06DA\u06DB\u06DC\u06DD"
+WAQF_SYMBOLS = set("\u0615"                                    # tah - necessary stop
+                   "\u0617"                                    # zain
+                   "\u06D6\u06D7\u06D8\u06D9\u06DA\u06DB\u06DC\u06DD"
                    "\u06DE\u06E9\u06EA\u06EB\u06EC\u06ED\u06E2")
 
 QALQALAH_LETTERS = set("\u0642\u0637\u0628\u062C\u062F")   # q t b j d
@@ -280,7 +295,36 @@ def uthmani_clusters_with_rules(marked: str):
     return out
 
 
-def map_word(uth_marked: str, indopak: str, allowed=None, stop: bool = False):
+DAGGER = "\u0670"
+
+
+def _compare_seq(items):
+    """Folded letter sequence for matching, plus each position's owner.
+
+    Uthmani writes long aa as U+0670 (a mark on the previous letter) where
+    IndoPak often writes a full alef — same letter, two conventions
+    (owner-approved 2026-09-19). BOTH sides are normalised the same way: a
+    dagger yields an extra virtual alef. Applying it to one side only makes
+    matters worse, because IndoPak uses U+0670 in plenty of words too, and
+    the sides then disagree where they previously matched.
+
+    `owner[p]` is the index of the real cluster position p belongs to, so
+    a rule landing on a virtual alef lands on the letter carrying it.
+    """
+    seq, owner = [], []
+    for idx, item in enumerate(items):
+        base, text = item[0], item[1]
+        seq.append(fold(base))
+        owner.append(idx)
+        if DAGGER in text:
+            seq.append("\u0627")
+            owner.append(idx)
+    return seq, owner
+
+
+def map_word(uth_marked: str, indopak: str, allowed=None, stop: bool = False,
+             tanween_span: str = "letter", break_after: bool = False,
+             break_before: bool = False):
     """Return (html, status) — IndoPak text with tj- spans applied.
 
     STRICT: a QUL rule transfers only when the two spellings have the same
@@ -297,13 +341,17 @@ def map_word(uth_marked: str, indopak: str, allowed=None, stop: bool = False):
     if allowed is not None:
         u = [(b, t, (r if r in allowed else None)) for b, t, r in u]
     if any(r for _, _, r in u):
-        a = [fold(b) for b, _, _ in u]
-        b = [fold(x) for x, _ in ip]
-        if a != b:
+        seq_u, own_u = _compare_seq(u)
+        seq_i, own_i = _compare_seq(ip)
+        if seq_u != seq_i:
             status = "skipped"
         else:
             status = "exact"
-            rules = [r for _, _, r in u]
+            # map each matched position back onto its real IndoPak cluster
+            for pos, src in enumerate(own_u):
+                rule = u[src][2]
+                if rule is not None:
+                    rules[own_i[pos]] = rule
 
             # P2: drop the trigger, only where it stays a separate sound.
             k = 0
@@ -342,6 +390,27 @@ def map_word(uth_marked: str, indopak: str, allowed=None, stop: bool = False):
                             rules[i] = None
                 k = j
 
+    # A pause between carrier and trigger cancels the rule outright. The
+    # carrier is the last ruled cluster (anything after it is a silent
+    # seat); the trigger is the first. Only cross-word rules are affected —
+    # a rule wholly inside one word is untouched by what follows it.
+    # Position tells carrier from trigger: QUL marks a trigger at the START
+    # of its word and a carrier at the END. Without that test, a word whose
+    # only ruled cluster is its word-initial trigger (مُّبِيْنٌ, يَّعْلَمُوْنَ)
+    # gets that trigger dropped by break_after as though it were a carrier.
+    if break_after:
+        for i in range(len(rules) - 1, -1, -1):
+            if rules[i] is not None:
+                if i > 0 and rules[i] in CROSSWORD_RULES:
+                    rules[i] = None
+                break
+    if break_before:
+        for i, r in enumerate(rules):
+            if r is not None:
+                if i == 0 and r in CROSSWORD_RULES:
+                    rules[i] = None
+                break
+
     # Waqf qalqalah on the word's final letter, when nothing already
     # colours it and the reciter stops there.
     if stop and ip and (allowed is None or "qalaqah" in allowed):
@@ -360,33 +429,51 @@ def map_word(uth_marked: str, indopak: str, allowed=None, stop: bool = False):
     if not any(rules):
         return indopak, status
 
-    # P1: a tanween carrier colours the MARK alone; the letter under it is
-    # a different letter and stays black.
-    html = []
-    for idx, (base, txt) in enumerate(ip):
-        r = rules[idx]
-        if r is None:
-            html.append(txt)
-            continue
-        # Qalqala takes the letter AND its tanween together — unlike the
-        # noon rules, where only the tanween mark is coloured (owner,
-        # 2026-09-19, from وَبَرْقٌ / حَقٍّ / أُجَاجٌ).
-        if r != "qalaqah" and any(t in txt for t in _TANWEEN):
-            out = []
-            for ch in txt:
-                out.append(f'<span class="tj-{r}">{ch}</span>'
-                           if ch in _TANWEEN else ch)
-            html.append("".join(out))
-        else:
-            # keep any trailing pause symbols OUTSIDE the colour
-            cut = len(txt)
-            while cut > 0 and (txt[cut - 1] in WAQF_SYMBOLS
-                               or txt[cut - 1].isspace()):
-                cut -= 1
-            head, tail = txt[:cut], txt[cut:]
-            html.append(f'<span class="tj-{r}">{head}</span>{tail}'
-                        if head else txt)
-    return "".join(html), status
+    # --- emit -----------------------------------------------------------
+    # The print colours a tanween carrier on the MARK ALONE. Most engines
+    # refuse to paint a lone combining mark in its own colour, using the
+    # base letter's instead -- black in Thorium (Chromium/Readium) and
+    # Google Play Books, though Gecko obliges. So tanween_span="mark" never
+    # asks them to: it draws the whole cluster coloured, then covers the
+    # LETTER with an identical black copy that omits the tanween, leaving
+    # only the coloured mark showing. Verified in Thorium, 2026-09-20.
+    #
+    # The overlay wraps the WHOLE WORD, never a single cluster: Arabic
+    # joins inside a word but not across spaces, so isolating a word costs
+    # no cursive joining where isolating a cluster would break it.
+    def _emit(idx, rule, drop_tanween=False):
+        txt = ip[idx][1]
+        if drop_tanween:          # must precede the rule check: the masked
+            return "".join(       # cluster is emitted plain AND stripped
+                c for c in txt if c not in _TANWEEN
+            )
+        if rule is None:
+            return txt
+        cut = len(txt)                      # trailing pause symbols stay
+        while cut > 0 and (txt[cut - 1] in WAQF_SYMBOLS
+                           or txt[cut - 1].isspace()):
+            cut -= 1
+        head, tail = txt[:cut], txt[cut:]
+        return f'<span class="tj-{rule}">{head}</span>{tail}' if head else txt
+
+    # Tanween carriers the print colours mark-only. Qalqala is excluded --
+    # it takes its tanween with it (owner ruling 2026-09-19).
+    masked = [
+        i for i, r in enumerate(rules)
+        if r is not None and r != "qalaqah"
+        and any(t in ip[i][1] for t in _TANWEEN)
+    ]
+
+    under = "".join(_emit(i, rules[i]) for i in range(len(ip)))
+    if tanween_span != "mark" or not masked:
+        return under, status
+
+    over = "".join(
+        _emit(i, None if i in masked else rules[i], drop_tanween=(i in masked))
+        for i in range(len(ip))
+    )
+    return (f'<span class="tj-ov"><span class="tj-u">{under}</span>'
+            f'<span class="tj-o" aria-hidden="true">{over}</span></span>'), status
 
 
 def is_stop_word(word_text: str, is_last_in_ayah: bool) -> bool:
