@@ -186,8 +186,22 @@ STOP_MARKS = {
 }
 # Explicitly NOT stops: U+06D7 ق (better not to stop), U+06D9 لا (don't
 # stop), U+0617 ز (desirable to continue, ruled 2026-09-19), and U+06E5
-# which is the لَهُۥ vowel rather than a pause mark. Unresolved, awaiting a ruling:
-# U+06EC (+13 marks), U+06ED (+3), U+06DB mu'anaqah.
+# which is the لَهُۥ vowel rather than a pause mark. U+06ED is settled
+# (2026-09-20): it is the qalb sign, the same small meem as U+06E2 but set
+# below the letter when a kasratan has taken the space above -- owner
+# caught it on سَیِّئَةٍۭ in Yusuf. Not a pause, and tajweed_rules colours
+# it with the qalb.
+#
+# U+06EC is settled too (2026-09-20): NOT a stop. Owner checked page 198
+# line 4, where وَّثَمُوْدَ ۙ۬ carries it with a laa and nothing else -- the
+# daal is black in the print, while اِبْرٰهِیْمَ and مَدْیَنَ on the next
+# line are orange, so an ordinary sakin qalqala fires there and this one
+# does not.
+#
+# U+06DB mu'anaqah needs no ruling: 54 of its 58 occurrences share a
+# cluster with a mark that is already a stop, and the other 4 have no
+# qalqala letter before them, so either answer colours the book
+# identically. Closed as moot rather than left open.
 
 
 # Owner-supplied Qudratullah palette (2026-09-19), in legend order.

@@ -33,7 +33,9 @@ class Ayah(BaseModel):
     page_number: int | None = None
     juz_number: int | None = None
     ruku_number: int | None = None  # Cumulative ruku' (1..558) — margin marks
-    hizb_quarter: int | None = None
+    hizb_quarter: int | None = None  # Rub' al-hizb 1..240 — quarter of a hizb; (n-1) % 4 gives hizb-start/rub'/nisf/three-quarters
+    hizb_number: int | None = None  # Hizb 1..60 (two per juz)
+    manzil_number: int | None = None  # Manzil 1..7 (the week-long reading division)
     sajdah: bool = False
     hizb_marker: bool = False
     page_marker: int | None = None  # Set when this ayah starts a new mushaf page

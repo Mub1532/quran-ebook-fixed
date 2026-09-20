@@ -1,0 +1,42 @@
+# Fixed 15-line IndoPak mushaf (Qudratullah grid) WITH tajweed colouring,
+# tanween coloured on the whole LETTER.
+#
+# Identical to indopak_fxl_tajweed.yaml in every other respect: same
+# canvas, same grid, same seven rules from data/tajweed_qudratullah.json,
+# same palette. The one difference is layout.tajweed_tanween.
+#
+# Where a rule's carrier is a tanween, Qudratullah prints the colour on
+# the MARK alone and leaves the letter beneath it black; other publishers
+# colour the whole cluster. Both are house styles, not a right and a
+# wrong answer, and the choice changes rendering only -- never which
+# letters a rule covers. Sibling config indopak_fxl_tajweed.yaml is the
+# Qudratullah-exact one.
+#
+# What this variant buys: colouring the letter needs no overlay, so the
+# book carries one text layer instead of two on ~3,900 words. Nothing is
+# drawn twice, so a highlighted line stays legible, and copying an ayah
+# does not paste its words twice.
+#
+# Writes quran_hafs-indopak-tjl_... so it never collides with its
+# mark-mode sibling.
+book:
+  title: "القرآن الکریم"
+  language: "ar"
+
+quran:
+  script: "text_indopak_nastaleeq"
+  source: "quran_api"
+
+font:
+  arabic: "indopak_nastaleeq"
+
+layout:
+  structure: "indopak_fxl"
+  tajweed: true
+  tajweed_tanween: letter
+  show_ayah_numbers: true
+  show_bismillah: true
+
+output:
+  directory: "output"
+  status: "experimental"

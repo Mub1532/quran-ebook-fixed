@@ -32,8 +32,8 @@
 {%- endfor %}
     </div>
 {%- for line in page.lines %}
-{%- if line.ruku or line.sajdah %}
-    <div class="fxl-mark" style="top: {{ geo.text_top + loop.index0 * geo.line_h }}px;"><div class="fxl-mark-in">{% if line.ruku %}<span class="fxl-ruku"><span class="fxl-ruku-ayn">ع</span><span class="fxl-ruku-num">{{ line.ruku | arabic_numerals }}</span></span>{% endif %}{% if line.sajdah %}<span class="fxl-sajdah">سجدة</span>{% endif %}</div></div>
+{%- if line.ruku or line.sajdah or line.manzil %}
+    <div class="fxl-mark" style="top: {{ geo.text_top + loop.index0 * geo.line_h }}px;"><div class="fxl-mark-in">{% if line.ruku %}<span class="fxl-ruku"><span class="fxl-ruku-ayn">ع</span><span class="fxl-ruku-num">{{ line.ruku | arabic_numerals }}</span><span class="fxl-ruku-juz">{{ line.juz | arabic_numerals }}</span></span>{% endif %}{% if line.manzil %}<span class="fxl-manzil">{{ line.manzil }}</span>{% endif %}{% if line.sajdah %}<span class="fxl-sajdah">سجدة</span>{% endif %}</div></div>
 {%- endif %}
 {%- endfor %}
     <div class="fxl-folio">{{ page_number | arabic_numerals }} <span class="fxl-folio-en">({{ page_number }})</span></div>

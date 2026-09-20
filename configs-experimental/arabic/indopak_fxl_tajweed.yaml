@@ -6,14 +6,17 @@
 # qalqala, ghunna) in that publisher's own palette, and prints the colour
 # key across the bottom margin of facing pages.
 #
-# Rules come from the QUL word-by-word tajweed export, which must be at
-# docs/qpc-hafs-tajweed.json-word-by-word.zip (free QUL login; docs/ is
-# gitignored). The build fails loudly if it is missing rather than
-# quietly shipping an uncoloured book.
+# The rules live in data/tajweed_qudratullah.json and are applied
+# directly to the IndoPak text -- every carrier they depend on (nun
+# sakin, meem sakin, tanween, tashdeed) is written explicitly in that
+# text, so nothing has to be mapped across from another orthography and
+# no word is skipped. Edit the JSON to change the colouring; the code
+# only applies whatever it declares.
 #
-# A rule is transferred only where the IndoPak and Uthmani spellings
-# correspond letter-for-letter; roughly 9% of rule-bearing words do not,
-# and are deliberately left black rather than coloured on a guess.
+# layout.tajweed_tanween is "mark" here: where a rule's carrier is a
+# tanween, Qudratullah colours the MARK alone and leaves the letter under
+# it black. Sibling config indopak_fxl_tajweed_letter.yaml colours the
+# whole letter instead, which is another publisher's house style.
 book:
   title: "القرآن الکریم"
   language: "ar"

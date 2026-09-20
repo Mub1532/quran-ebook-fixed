@@ -1980,6 +1980,42 @@ def _fxl_page_href(page_number: int) -> str:
     return f"page-{page_number:03d}.xhtml"
 
 
+def _apply_tajweed_rules(pages, mushaf, tanween_span="letter"):
+    """Colour every word by applying the rule file to the IndoPak text.
+
+    Words are handed to the engine one ayah at a time, in reading order.
+    That is safe for the cross-word rules because an ayah always ends in a
+    stop, which cancels them anyway.
+    """
+    from ..data.tajweed import is_stop_word
+    from ..data.tajweed_rules import colour_words, load_rules
+
+    load_rules()                      # fail early if the rule file is bad
+    by_ayah: dict[tuple[int, int], list] = {}
+    for page in pages.values():
+        for line in page["lines"]:
+            for tok in line["tokens"]:
+                if tok["kind"] == "word":
+                    by_ayah.setdefault((tok["surah"], tok["ayah"]), []).append(tok)
+
+    marks = coloured = 0
+    for toks in by_ayah.values():
+        words = [t["text"] for t in toks]
+        stops = [is_stop_word(w, i == len(words) - 1)
+                 for i, w in enumerate(words)]
+        for tok, html in zip(toks, colour_words(words, stops, tanween_span),
+                             strict=True):
+            tok["text"] = html
+            n = (html.count('<span class="tj-')
+                 - html.count('<span class="tj-ov"')
+                 - html.count('<span class="tj-u"')
+                 - html.count('<span class="tj-o"')
+                 - _hidden_marks(html))
+            marks += n
+            coloured += bool(n)
+    return marks, coloured, 0
+
+
 def _hidden_marks(html: str) -> int:
     """Coloured spans inside an overlay's top (black, aria-hidden) copy."""
     total = 0
@@ -2080,18 +2116,25 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
     scheme = legend_halves = None
     if tajweed:
         from ..data.tajweed import SCHEME, QUDRATULLAH_PALETTE
-        marks, ok, skipped = _apply_tajweed(
-            pages, mushaf, config.layout.tajweed_tanween
-        )
+        if config.layout.tajweed_method == "rules":
+            marks, ok, skipped = _apply_tajweed_rules(
+                pages, mushaf, config.layout.tajweed_tanween
+            )
+        else:
+            marks, ok, skipped = _apply_tajweed(
+                pages, mushaf, config.layout.tajweed_tanween
+            )
         scheme = SCHEME
         keys = [(colour, label) for _, colour, label in QUDRATULLAH_PALETTE]
         # The key is split across facing pages, as the printed mushaf sets
         # it — a single strip would not hold all seven.
         legend_halves = (keys[:4], keys[4:])
         click.echo(
-            f"  Tajweed ({scheme}): {marks:,} marks, {ok:,} words matched "
-            f"1:1, {skipped:,} left black (no letter correspondence); "
-            f"tanween carrier = {config.layout.tajweed_tanween}"
+            f"  Tajweed ({scheme}, {config.layout.tajweed_method}): "
+            f"{marks:,} marks on {ok:,} words"
+            + (f", {skipped:,} left black (no letter correspondence)"
+               if skipped else "")
+            + f"; tanween carrier = {config.layout.tajweed_tanween}"
         )
 
     from ..config.registry import JUZ_NAMES

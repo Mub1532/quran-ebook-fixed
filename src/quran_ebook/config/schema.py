@@ -84,8 +84,9 @@ class LayoutConfig(BaseModel):
     show_bismillah: bool = True
     wbw_transliteration: bool = False  # Show transliteration row in WBW layout
     wbw_gloss_language: str = ""  # Override WBW gloss language (e.g. "en" for English glosses with non-English translation). Empty = use translation language.
+    tajweed_method: Literal["rules", "transfer"] = "rules"  # "rules" computes tajweed from the IndoPak text via data/tajweed_qudratullah.json -- no orthographic mapping, so no word is skipped. "transfer" maps QUL's Uthmani-marked spans across instead, which needs the QUL export and leaves ~2,300 unmatched words black.
     tajweed_tanween: Literal["letter", "mark"] = "letter"  # How a tanween CARRIER is coloured. "mark" is print-exact (the mark alone) but a lone combining mark is painted with its base letter's colour by most engines -- black in Thorium and Google Play Books, correct in Gecko. "letter" colours the whole cluster: visible everywhere, tints the letter too.
-    tajweed: bool = False  # Colour tajweed rules (indopak_fxl only). Needs the QUL word-by-word export; see data/tajweed.py. Stamps the encoding slot "tj" into the filename so a coloured variant never collides with its plain sibling.
+    tajweed: bool = False  # Colour tajweed rules (indopak_fxl only). The default method reads data/tajweed_qudratullah.json and applies it to the IndoPak text; only tajweed_method="transfer" needs the QUL export. Stamps the encoding slot ("tj" for tajweed_tanween=mark, "tjl" for letter) into the filename so a coloured variant never collides with its plain sibling.
     ayah_align: str = "right"  # .ayah-text alignment in by_surah/ayah_popup layouts: right (default; device-settled 2026-07-05) | center | justify (justify sets text-align-last: right — device-rejected, CRE stretches lines). Only standalone ayah blocks consume this; .bilin templates hard-override to right in CSS.
 
 
@@ -204,8 +205,12 @@ class BuildConfig(BaseModel):
         # Tajweed colouring is an overlay on the same script, so it lands
         # in the ENCODING slot the grammar already reserves for it —
         # the same "tj" token qpc_uthmani_hafs_tajweed uses (§1).
+        # The two tanween conventions are different books on the shelf, so
+        # they take different tokens: "tj" for the print-exact mark, "tjl"
+        # for the whole-letter house style. Without this they would write
+        # to the same filename and silently overwrite each other.
         if self.layout.tajweed and not enc:
-            enc = "tj"
+            enc = "tj" if self.layout.tajweed_tanween == "mark" else "tjl"
         placement = pl_translated if self.translation else pl_bare
         parts = [
             "quran",

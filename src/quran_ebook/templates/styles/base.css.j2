@@ -638,19 +638,47 @@ table.bismillah-table td {
     text-align: center;
     line-height: 1;
 }
+/* The ruku' sign as the print sets it: a rosette holding the ayn, the
+   ruku's number within its surah, and the para it falls in, stacked. */
 .fxl-ruku {
     display: block;
+    width: 52px;
+    margin: 0 auto;
+    padding: 5px 0 6px;
+    border: 2px solid #b9a980;
+    border-radius: 50%;
     text-align: center;
 }
 .fxl-ruku-ayn {
     display: block;
-    font-size: 46px;
-    line-height: 1.05;
+    font-size: 22px;
+    line-height: 1.4;
 }
 .fxl-ruku-num {
     display: block;
-    font-size: 26px;
-    line-height: 1.1;
+    font-size: 16px;
+    line-height: 1.2;
+}
+.fxl-ruku-juz {
+    display: block;
+    font-size: 16px;
+    line-height: 1.25;
+    border-top: 1px solid #c8bb9a;
+    width: 22px;
+    margin: 0 auto;
+}
+/* Quarter-hizb and manzil openings. These belong to the line where the
+   division BEGINS, unlike the ruku' sign, which marks where one ends. */
+/* Sits in an 87px margin, so it wraps at its space rather than bleeding
+   off the page edge. No quarter-hizb sign beside it: the print leaves
+   that margin empty and marks the rub' under the ayah medallion instead
+   (owner, page 7 line 9, 2026-09-20). */
+.fxl-manzil {
+    display: block;
+    width: 80px;
+    margin: 4px auto 0;
+    font-size: 17px;
+    line-height: 1.15;
 }
 .fxl-sajdah {
     display: block;
@@ -738,8 +766,8 @@ table.bismillah-table td {
    body, so the two can never bleed into one another. */
 .tj-scheme-qudratullah .tj-ikhafa         { color: #438851; }
 .tj-scheme-qudratullah .tj-ikhafa_shafawi { color: #C9C856; }
-.tj-scheme-qudratullah .tj-qalaqah        { color: #E7570C; }
-.tj-scheme-qudratullah .tj-iqlab          { color: #7F4669; }
+.tj-scheme-qudratullah .tj-qalaqah        { color: #ffc800; }
+.tj-scheme-qudratullah .tj-iqlab          { color: #c25cc8; }
 .tj-scheme-qudratullah .tj-idgham_ghunnah { color: #ec0f0f; }
 .tj-scheme-qudratullah .tj-idgham_shafawi { color: #F3A3B2; }
 .tj-scheme-qudratullah .tj-ghunnah        { color: #289FEA; }

@@ -1,0 +1,216 @@
+{
+  "scheme": "qudratullah",
+  "description": "Tajweed rules as marked by the Qudratullah IndoPak mushaf, taken from its own contents page and verified against the print by the owner. Computed directly from the IndoPak text - no mapping from another orthography, so no word is ever skipped for want of correspondence.",
+  "not_marked": [
+    "idgham bila ghunna (laam, raa) - absent from the publisher's rule list",
+    "izhar halqi (nun sakin + throat letters)",
+    "izhar shafawi (meem sakin before anything but baa/meem)",
+    "all madd classes - IndoPak orthography already notates madd",
+    "hamzat al-wasl, silent letters, laam shamsiyyah"
+  ],
+  "carriers": {
+    "noon_sakin": {
+      "letter": "ن",
+      "requires": "sukun"
+    },
+    "meem_sakin": {
+      "letter": "م",
+      "requires": "sukun"
+    },
+    "tanween": {
+      "marks": [
+        "ً",
+        "ٌ",
+        "ٍ"
+      ]
+    },
+    "shadda": {
+      "marks": [
+        "ّ"
+      ]
+    },
+    "sukun_marks": [
+      "ْ",
+      "ۡ"
+    ]
+  },
+  "rules": [
+    {
+      "id": "ghunnah",
+      "name": "Ghunna",
+      "name_ar": "غنة",
+      "colour": "#289FEA",
+      "precedence": 10,
+      "description": "Nun or meem carrying tashdeed.",
+      "precedence_note": "Wins the whole cluster when a qalb also applies -- summun bukmun (2:18, 2:171) and mutma'innun bil-iman (16:106) have a meem with tashdeed AND a tanween before a baa. Owner checked all three against the print 2026-09-20: meem, tanween and the small meem sign are all blue. So ghunna takes the letter, the mark and the qalb sign, and the qalb is not marked at all.",
+      "carrier": "shadda_on",
+      "carrier_letters": [
+        "ن",
+        "م"
+      ],
+      "triggers": [],
+      "cross_word": false,
+      "colour_scope": "carrier",
+      "tanween_scope": null
+    },
+    {
+      "id": "ikhafa",
+      "name": "Ikhfa",
+      "name_ar": "إخفاء",
+      "colour": "#438851",
+      "precedence": 20,
+      "description": "Nun sakin or tanween followed by one of fifteen letters.",
+      "carrier": "noon_sakin_or_tanween",
+      "triggers": [
+        "ت",
+        "ث",
+        "ج",
+        "د",
+        "ذ",
+        "ز",
+        "س",
+        "ش",
+        "ص",
+        "ض",
+        "ط",
+        "ظ",
+        "ف",
+        "ق",
+        "ك"
+      ],
+      "cross_word": true,
+      "colour_scope": "carrier",
+      "tanween_scope": "mark",
+      "tanween_note": "When the carrier is a tanween the print colours the MARK only; the letter it sits on is a different letter and stays black."
+    },
+    {
+      "id": "iqlab",
+      "name": "Qalb",
+      "name_ar": "قلب",
+      "colour": "#7F4669",
+      "precedence": 25,
+      "description": "Nun sakin or tanween followed by baa; the nun becomes a meem.",
+      "carrier": "noon_sakin_or_tanween",
+      "triggers": [
+        "ب"
+      ],
+      "cross_word": true,
+      "colour_scope": "carrier",
+      "tanween_scope": "mark",
+      "tanween_note": "When the carrier is a tanween the print colours the MARK only; the letter it sits on is a different letter and stays black."
+    },
+    {
+      "id": "idgham_ghunnah",
+      "name": "Idghaam",
+      "name_ar": "إدغام",
+      "colour": "#ec0f0f",
+      "precedence": 30,
+      "description": "Nun sakin or tanween merging into a following yaa, waw, meem or nun, with ghunna. Only across a word boundary; inside one word it is izhar and stays black.",
+      "carrier": "noon_sakin_or_tanween",
+      "triggers": [
+        "ي",
+        "و",
+        "م",
+        "ن"
+      ],
+      "cross_word": true,
+      "same_word": false,
+      "colour_scope": "carrier_and_trigger",
+      "tanween_scope": "mark",
+      "tanween_note": "When the carrier is a tanween the print colours the MARK only; the letter it sits on is a different letter and stays black."
+    },
+    {
+      "id": "ikhafa_shafawi",
+      "name": "Ikhfa meem saakin",
+      "name_ar": "إخفاء ميم ساكن",
+      "colour": "#C9C856",
+      "precedence": 20,
+      "description": "Meem sakin followed by baa.",
+      "carrier": "meem_sakin",
+      "triggers": [
+        "ب"
+      ],
+      "cross_word": true,
+      "colour_scope": "carrier",
+      "tanween_scope": "mark",
+      "tanween_note": "When the carrier is a tanween the print colours the MARK only; the letter it sits on is a different letter and stays black."
+    },
+    {
+      "id": "idgham_shafawi",
+      "name": "Idghaam meem saakin",
+      "name_ar": "إدغام ميم ساكن",
+      "colour": "#F3A3B2",
+      "precedence": 30,
+      "description": "Meem sakin followed by meem.",
+      "carrier": "meem_sakin",
+      "triggers": [
+        "م"
+      ],
+      "cross_word": true,
+      "colour_scope": "carrier_and_trigger",
+      "tanween_scope": "mark",
+      "tanween_note": "When the carrier is a tanween the print colours the MARK only; the letter it sits on is a different letter and stays black."
+    },
+    {
+      "id": "qalaqah",
+      "name": "Qalqala",
+      "name_ar": "قلقلة",
+      "colour": "#E7570C",
+      "precedence": 100,
+      "description": "One of five letters in its sakin form, or when you stop on it. Outranks every other rule on the letter it falls on.",
+      "carrier": "qalqalah_letter",
+      "carrier_letters": [
+        "ق",
+        "ط",
+        "ب",
+        "ج",
+        "د"
+      ],
+      "triggers": [],
+      "cross_word": false,
+      "colour_scope": "carrier",
+      "tanween_scope": "letter_and_mark",
+      "tanween_note": "Qalqala takes its tanween with it - the letter AND the mark are coloured (owner, from wabarqun / haqqin / ujajun)."
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "same_word_izhar",
+      "applies_to": "idgham_ghunnah",
+      "description": "Nun sakin followed by yaa or waw INSIDE one word is izhar, not idghaam - the nun stays black.",
+      "words": [
+        "دنيا",
+        "بنيان",
+        "قنوان",
+        "صنوان"
+      ]
+    }
+  ],
+  "pause": {
+    "description": "No assimilation happens across a pause: if a stop mark separates carrier from trigger, neither half is coloured.",
+    "cancels_cross_word_rules": true,
+    "stop_marks": [
+      "ؕ",
+      "ۖ",
+      "ۘ",
+      "ۚ",
+      "ۜ",
+      "۪",
+      "۫",
+      "۝"
+    ],
+    "stop_at_ayah_end": true,
+    "stop_at_ayah_end_note": "The ayah end stops a rule even when its marker carries the laa (do not stop). Owner checked 80:14 mutahharatin and 80:15 safaratin against the print 2026-09-20: both are black at their ayah ends although both are followed by laa, and mutahharatin even carries a printed qalb sign. So an ayah end is an unconditional stop here, and the colouring can keep being fed one ayah at a time. 1,062 of the 6,236 ayahs end with laa, so this ruling is what keeps cross-ayah rules out of the book.",
+    "not_stops": {
+      "ۗ": "qaf - better not to stop",
+      "ۙ": "laa - do not stop",
+      "ؗ": "zain - desirable to continue"
+    },
+    "saktah_note": "The saktah (U+06DC) is listed among the stop marks deliberately: a brief pause still prevents assimilation, so it cancels every cross-word rule through the ordinary pause path. A separate saktah exception was dropped 2026-09-20 as unreachable -- its only classical case, man raaqin (75:27), is nun before raa, i.e. idgham bila ghunna, which this mushaf does not mark at all."
+  },
+  "rendering": {
+    "description": "layout.tajweed_tanween selects how a rule whose tanween_scope is \"mark\" is drawn. It changes rendering only, never which letters a rule covers.",
+    "mark": "Print-exact: the tanween mark alone carries the colour. Engines paint a lone combining mark with its base letter's colour rather than its own (black in Thorium and Google Play Books, correct in Gecko), so the word is drawn twice - coloured underneath, and an identical black copy with the tanween removed on top, leaving only the mark showing. The overlay wraps a whole WORD: Arabic joins inside a word but not across spaces, so no cursive join is broken.",
+    "letter": "The whole cluster is coloured, tinting the letter as well as its tanween. Visible in every engine, but a divergence from the print."
+  }
+}

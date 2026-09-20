@@ -148,13 +148,16 @@ def _bucket_tokens(mushaf: Mushaf, ayah_lines: list[tuple],
                 {"kind": "word", "text": w.text, "surah": surah.number,
                  "ayah": ayah.ayah_number,
                  "hizb": ayah.hizb_marker and w.position == 1,
+                 # Needed by the margin signs: a manzil opens on the
+                 # line that carries its first word, not its last.
+                 "position": w.position,
                  "translation": False}
                 for w in ayah.words
             ]
             tokens.append({
                 "kind": "end", "text": ayah.ayah_marker,
                 "surah": surah.number, "ayah": ayah.ayah_number,
-                "hizb": False,
+                "hizb": False, "position": 0,
                 # The popup variant turns a marker into a noteref only
                 # where a translation note actually exists.
                 "translation": bool(ayah.translation),
@@ -266,6 +269,15 @@ def _ayah_meta(mushaf: Mushaf) -> dict:
     # The ayah that OPENS each para — the printed mushaf tints the line it
     # falls on.
     juz_first: dict[int, tuple[int, int]] = {}
+    # The ayah that OPENS each manzil. Unlike the ruku' sign this belongs
+    # to where the division BEGINS, which is how the printed mushaf sets
+    # it.
+    #
+    # No quarter-hizb sign: the owner checked page 7 line 9 (the nisf of
+    # hizb 1, at 2:44) against the print on 2026-09-20 and the margin
+    # there is empty -- this mushaf puts the rub' marks under the ayah
+    # medallion, in the text itself, and nowhere else.
+    manzil_first: dict[int, tuple[int, int]] = {}
     for surah in mushaf.surahs:
         seen: list[int] = []
         for i, ayah in enumerate(surah.ayahs):
@@ -273,6 +285,9 @@ def _ayah_meta(mushaf: Mushaf) -> dict:
             juz[key] = ayah.juz_number
             if ayah.juz_number is not None and ayah.juz_number not in juz_first:
                 juz_first[ayah.juz_number] = key
+            if (ayah.manzil_number is not None
+                    and ayah.manzil_number not in manzil_first):
+                manzil_first[ayah.manzil_number] = key
             if ayah.sajdah:
                 sajdah.add(key)
             if ayah.ruku_number is None:
@@ -284,7 +299,11 @@ def _ayah_meta(mushaf: Mushaf) -> dict:
             if closes:
                 ruku_end[key] = len(seen)
     return {"juz": juz, "sajdah": sajdah, "ruku_end": ruku_end,
-            "juz_start": set(juz_first.values())}
+            "juz_start": set(juz_first.values()),
+            "manzil_start": {key: n for n, key in manzil_first.items()}}
+
+
+_ARABIC_DIGITS = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
 
 
 def _line_marks(tokens: list[dict], meta: dict) -> dict:
@@ -292,10 +311,15 @@ def _line_marks(tokens: list[dict], meta: dict) -> dict:
     juz = None
     sajdah = False
     ruku = None
+    manzil = None
     for tok in tokens:
         key = (tok["surah"], tok["ayah"])
         if juz is None:
             juz = meta["juz"].get(key)
+        # The manzil OPENS on this line if its first ayah starts here.
+        if tok["kind"] == "word" and tok.get("position") == 1:
+            if manzil is None and key in meta["manzil_start"]:
+                manzil = meta["manzil_start"][key]
         if tok["kind"] == "end":
             # Both signs belong to the line where the ayah CLOSES — a
             # sajdah ayah can span four lines, and the printed mushaf
@@ -304,7 +328,11 @@ def _line_marks(tokens: list[dict], meta: dict) -> dict:
                 sajdah = True
             if key in meta["ruku_end"]:
                 ruku = meta["ruku_end"][key]
-    return {"juz": juz, "sajdah": sajdah, "ruku": ruku}
+    return {
+        "juz": juz, "sajdah": sajdah, "ruku": ruku,
+        "manzil": ("منزل " + str(manzil).translate(_ARABIC_DIGITS)
+                   if manzil is not None else None),
+    }
 
 def build_whole_pages(mushaf: Mushaf) -> dict[int, dict]:
     """Lay the mushaf out as 610 WHOLE pages, ignoring surah boundaries.
