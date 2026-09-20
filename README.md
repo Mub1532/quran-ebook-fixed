@@ -2,6 +2,7 @@
 - Fixed Layout EPUB made best for the aspect ratio of Z fold devices (book style fold)*
 
 **WARNING:** this repo is not a true 1 to 1 fork, it has changed a lot of things, things may be broken from the original repo, so please do not use this as a base and use the original authors version.
+repo name has -fixed appended, it means fixed layout, for the EPUBS
 
 <div align="center">
 
