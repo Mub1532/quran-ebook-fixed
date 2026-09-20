@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ar" lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width={{ page_w }}, height={{ page_h }}"/>
+    <title>{{ title }}</title>
+    <link rel="stylesheet" type="text/css" href="styles/base.css"/>
+    <style type="text/css">
+        .fxl-head { left: {{ geo.header_left }}px; top: {{ geo.header_top }}px; width: {{ geo.header_w }}px; height: {{ geo.header_h }}px; line-height: {{ geo.header_h }}px; }
+        .fxl-frame { padding: {{ geo.frame_pad_y }}px 0; left: {{ geo.frame_left }}px; top: {{ geo.frame_top }}px; width: {{ geo.frame_w }}px; height: {{ geo.frame_h }}px; }
+    </style>
+</head>
+<body class="fxl-body">
+    <div class="fxl-page">
+    <div class="fxl-head"><span class="fxl-head-surah">{{ title }}<span class="fxl-head-lat">{{ title_en }}</span></span></div>
+    <div class="fxl-frame">
+        <table class="fxl-idx">
+            <thead>
+                <tr>
+{%- for _ in range(cols) %}
+                    <th class="fxl-idx-h-num">رقم<span class="fxl-idx-lat">No.</span></th><th class="fxl-idx-h-name">{{ head_name_ar }}<span class="fxl-idx-lat">{{ head_name }}</span></th><th class="fxl-idx-h-page{% if not loop.last %} fxl-idx-split{% endif %}">صفحة<span class="fxl-idx-lat">Page</span></th>
+{%- endfor %}
+                </tr>
+            </thead>
+            <tbody>
+{%- for entry in entries %}
+    {%- if loop.index0 % cols == 0 %}
+                <tr>
+    {%- endif %}
+                    <td class="fxl-idx-num"><a href="{{ entry.href }}">{{ entry.number | arabic_numerals }}<span class="fxl-idx-lat">({{ entry.number }})</span></a></td><td class="fxl-idx-name"><a href="{{ entry.href }}">{{ entry.name }}{% if entry.translit %}<span class="fxl-idx-translit" dir="ltr">{{ entry.translit }}</span>{% endif %}</a></td><td class="fxl-idx-page{% if loop.index0 % cols != cols - 1 %} fxl-idx-split{% endif %}"><a href="{{ entry.href }}">{{ entry.page | arabic_numerals }}<span class="fxl-idx-lat">({{ entry.page }})</span></a></td>
+    {%- if loop.index0 % cols == cols - 1 or loop.last %}
+                </tr>
+    {%- endif %}
+{%- endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+</body>
+</html>

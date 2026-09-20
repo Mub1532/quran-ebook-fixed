@@ -19,7 +19,7 @@
 </head>
 <body class="fxl-body{% if tajweed_scheme %} tj-scheme-{{ tajweed_scheme }}{% endif %}">
     <div class="fxl-page"><span epub:type="pagebreak" role="doc-pagebreak" id="page{{ page_number }}" title="{{ page_number }}"></span>
-    <div class="fxl-head"><span class="fxl-head-surah">{{ surah_names[head.surah] }} <span class="fxl-head-num">{{ head.surah | arabic_numerals }}</span></span><span class="fxl-head-juz">{{ juz_names[head.juz] }} <span class="fxl-head-num">{{ head.juz | arabic_numerals }}</span></span></div>
+    <div class="fxl-head"><span class="fxl-head-surah">{{ surah_names[head.surah] }} <span class="fxl-head-num">{{ head.surah | arabic_numerals }}</span><span class="fxl-head-lat">({{ head.surah }})</span></span><span class="fxl-head-juz">{{ juz_names[head.juz] }} <span class="fxl-head-num">{{ head.juz | arabic_numerals }}</span><span class="fxl-head-lat">({{ head.juz }})</span></span></div>
     <div class="fxl-frame">
 {%- for line in page.lines %}
 {%- if line.type == 'surah_name' %}
@@ -38,7 +38,7 @@
 {%- endfor %}
     <div class="fxl-folio">{{ page_number | arabic_numerals }} <span class="fxl-folio-en">({{ page_number }})</span></div>
 {%- if legend %}
-    <div class="fxl-legend">{% for colour, label in legend %}<span class="fxl-key"><span class="fxl-dot" style="background: {{ colour }};"></span>{{ label }}</span>{% endfor %}</div>
+    <div class="fxl-legend">{% for rule in legend %}<span class="fxl-key tj-{{ rule.id }}"><span class="fxl-dot"></span><span class="fxl-key-ar">{{ rule.name_ar }}</span><span class="fxl-key-tr">{{ rule.name }}</span></span>{% endfor %}</div>
 {%- endif %}
     </div>
 </body>

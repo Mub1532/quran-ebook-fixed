@@ -42,10 +42,16 @@ _SHADDA = "ّ"
 # to the carrier's own letter -- in shahidun it follows a private-use
 # codepoint the font uses for placement, which starts a fresh cluster --
 # so it has to be reattached to the rule after the fact.
-# Two of them: the small meem rides above the letter, or below it when
-# the tanween it belongs to is a kasratan and the space above is taken.
-# Same sign, same rule, different codepoint.
-_IQLAB_SIGNS = frozenset(("\u06E2", "\u06ED"))
+# The qalb sign, in all four spellings this text uses. Two are proper
+# Unicode -- the small meem above the letter, and below it when a
+# kasratan has taken the space above -- and two are private-use glyphs
+# the IndoPak font ships for the same mark. The PUA pair is not decorative:
+# U+F65D occurs 244 times and U+F64A 120, together more than the Unicode
+# pair, and every single one of them is immediately followed by a baa,
+# which is what a qalb sign means. (U+F64B looks similar in a dump but is
+# NOT one: it turns up mid-word in فَاسِقٌ and فَلْیَاْكُلْ, so it is a
+# letterform helper, not a mark.)
+_IQLAB_SIGNS = frozenset(("\u06E2", "\u06ED", "\uF64A", "\uF65D"))
 
 # IndoPak spells a few letters at Persian/variant codepoints: the same
 # letter, a different number. Matching a carrier or a trigger has to see
@@ -98,7 +104,7 @@ def _bare(text: str) -> str:
 class _Cluster:
     """One letter with its marks, plus where it sits in the text."""
 
-    __slots__ = ("word", "idx", "base", "text", "rule")
+    __slots__ = ("word", "idx", "base", "text", "rule", "inherited")
 
     def __init__(self, word, idx, base, text):
         self.word = word
@@ -106,6 +112,9 @@ class _Cluster:
         self.base = _fold(base)
         self.text = text
         self.rule = None
+        # True when the rule was not computed for this cluster but pinned
+        # on afterwards, which is how a stray qalb sign finds its rule.
+        self.inherited = False
 
     def has(self, *marks) -> bool:
         return any(m in self.text for m in marks)
@@ -244,15 +253,28 @@ def apply_rules(words: list[str], stops: list[bool],
             if rule["colour_scope"] == "carrier_and_trigger":
                 trg.rule = rule["id"]
 
-    # The qalb sign belongs to the qalb, wherever the text happens to
-    # have parked it. Without this it sits in a cluster of its own with
-    # no rule on it and prints black beside a coloured carrier.
+    # The qalb sign belongs to whatever rule its carrier got, wherever
+    # the text happens to have parked the sign. Without this it sits in a
+    # cluster of its own with no rule on it and prints black beside a
+    # coloured carrier.
+    #
+    # Usually that rule is the qalb. Not always: in ghamman bi-ghammin
+    # the meem carries a tashdeed, so ghunna outranks the qalb and takes
+    # the cluster -- and the print colours the sign with it (owner, from
+    # summun bukmun, 2026-09-20). So the sign follows the carrier rather
+    # than assuming a rule of its own.
+    # Only from the cluster immediately before it. A sign parked further
+    # off is not this carrier's: in mutahharatin the pause has already
+    # cancelled the qalb, and reaching back any further would find the
+    # unrelated ghunna at the head of the word and colour a sign the
+    # print leaves black (owner, 80:14, 2026-09-20).
     for row in grid:
-        if not any(c.rule == "iqlab" for c in row):
-            continue
-        for c in row:
-            if c.rule is None and any(m in c.text for m in _IQLAB_SIGNS):
-                c.rule = "iqlab"
+        for i, c in enumerate(row):
+            if c.rule is not None or i == 0:
+                continue
+            if row[i - 1].rule and any(m in c.text for m in _IQLAB_SIGNS):
+                c.rule = row[i - 1].rule
+                c.inherited = True
 
     return grid
 
@@ -262,6 +284,7 @@ _ZWJ = "\u200d"
 # these would ask for a joined form it does not have, so the seam is left
 # alone there — it cannot carry a ligature across anyway.
 _NO_LEFT_JOIN = set("اآأإٱدذرزوؤةءى")
+_ALEFS = set("اآأإٱ")
 
 
 def _seams(row: list[_Cluster]) -> set[int]:
@@ -289,6 +312,13 @@ def _seams(row: list[_Cluster]) -> set[int]:
         if not (_ARABIC_LETTER.match(a.base) and _ARABIC_LETTER.match(b.base)):
             continue
         if a.base in _NO_LEFT_JOIN:
+            continue
+        if a.base == "\u0644" and b.base in _ALEFS:
+            # Lam-alef is a REQUIRED ligature, not a stylistic one: the
+            # pair has no separate forms to fall back on, so a ZWJ here
+            # does not merely change the shape, it breaks the word into
+            # a lam and an alef standing apart (owner, on maalan). The
+            # colour bleeding across a laa is the lesser fault.
             continue
         out.add(i)
     return out
@@ -332,10 +362,14 @@ def _emit(row: list[_Cluster], colours: dict, tanween_span: str) -> str:
             continue
         if colours[c.rule].get("tanween_scope") == "mark" and c.has(*_TANWEEN):
             masked.setdefault(id(c), set()).update(_TANWEEN)
-        # The qalb sign is a mark too, and the print colours it whatever
-        # the carrier is coloured -- so it goes in the hole in the top
-        # sheet alongside the tanween.
-        if c.rule == "iqlab" and any(m in c.text for m in _IQLAB_SIGNS):
+        # The qalb sign is a mark too, so it goes in the hole in the top
+        # sheet -- but ONLY where the letter it sits on must stay black.
+        # That is true of a tanween's letter, and of the silent seat a
+        # stray sign was pinned to, and false of the nun of min, which is
+        # the carrier itself and takes the colour with the sign. Masking
+        # that one would paint the nun black and lose the rule.
+        if (id(c) in masked or c.inherited) and any(
+                m in c.text for m in _IQLAB_SIGNS):
             masked.setdefault(id(c), set()).update(_IQLAB_SIGNS)
     seams = _seams(row)
     rules = [c.rule for c in row]

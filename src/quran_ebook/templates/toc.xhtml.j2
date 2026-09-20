@@ -51,19 +51,19 @@
     <nav epub:type="toc" id="toc" hidden="hidden">
         <ol>
 {%- if juz_entries %}
-            <li><a href="toc.xhtml">الأجزاء</a>
+            <li><a href="toc.xhtml">{{ labels.juz_index_ar }} - {{ labels.juz_index_en }}</a>
                 <ol>
 {%- for juz in juz_entries %}
-                    <li><a href="{{ juz.href }}">{{ juz.label_text }} {{ juz.label_num }}</a></li>
+                    <li><a href="{{ juz.href }}">{{ juz.label_text }} {{ juz.label_num }} - {{ juz.label_en }} {{ juz.juz }}</a></li>
 {%- endfor %}
                 </ol>
             </li>
 {%- endif %}
 {%- for surah in surahs %}
 {%- if is_bilingual %}
-            <li><a href="{{ chapter_href(surah.number) }}">{{ surah.number }}. {{ surah.name_transliteration }} — سورة {{ surah.name_arabic }}</a></li>
+            <li><a href="{{ chapter_href(surah.number) }}">{{ surah.number }}. {{ surah.name_transliteration }} - {{ labels.surah_ar }} {{ surah.name_arabic }}</a></li>
 {%- else %}
-            <li><a href="{{ chapter_href(surah.number) }}">{{ surah.number | arabic_numerals }} سورة {{ surah.name_arabic }}</a></li>
+            <li><a href="{{ chapter_href(surah.number) }}">{{ surah.number | arabic_numerals }} {{ labels.surah_ar }} {{ surah.name_arabic }} - {{ surah.number }}. {{ surah.name_transliteration }}</a></li>
 {%- endif %}
 {%- endfor %}
 {%- if endnotes_label %}

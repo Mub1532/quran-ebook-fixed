@@ -443,6 +443,23 @@ def _compute_page_list(mushaf: Mushaf, page_href_fn) -> list[dict]:
     return entries
 
 
+# The words the printed index and the navigation document both use. One
+# dict, so the two can never drift apart -- they are the same book's
+# table of contents shown two ways, and a reader meets both.
+INDEX_LABELS = {
+    "juz_ar": "جزء",
+    "juz_en": "Juz",
+    "juz_index_ar": "فهرس الأجزاء",
+    "juz_index_en": "Index of Paras",
+    "juz_col_ar": "الجزء",
+    "surah_ar": "سورة",
+    "surah_en": "Surah",
+    "surah_index_ar": "فهرس السور",
+    "surah_index_en": "Index of Surahs",
+    "surah_col_ar": "السورة",
+}
+
+
 def _compute_juz_entries(mushaf: Mushaf, href_fn) -> list[dict]:
     """Extract juz boundary information for TOC navigation.
 
@@ -461,8 +478,9 @@ def _compute_juz_entries(mushaf: Mushaf, href_fn) -> list[dict]:
                 entries.append({
                     "juz": ayah.juz_number,
                     "href": href_fn(surah.number, ayah.ayah_number),
-                    "label_text": "جزء",
+                    "label_text": INDEX_LABELS["juz_ar"],
                     "label_num": _arabic_numerals(ayah.juz_number),
+                    "label_en": INDEX_LABELS["juz_en"],
                 })
                 prev_juz = ayah.juz_number
     return entries
@@ -910,11 +928,16 @@ def _render_package_opf(
     # ...and it must opt OUT of pre-paginated explicitly: the global
     # rendition:layout applies to every spine document, and epubcheck
     # rejects a pre-paginated document with no viewport (HTM-046).
-    spine_items.append(
-        '<itemref idref="toc" linear="no" '
-        'properties="rendition:layout-reflowable"/>' if is_fxl
-        else '<itemref idref="toc"/>'
-    )
+    # In a fixed-layout book the nav document is NOT a spine item. It
+    # would have to opt out of pre-paginated (it is a multi-page table,
+    # and a pre-paginated spine item is exactly one page), and a
+    # reflowable leaf mid-book drops the reader out of fixed-layout mode
+    # -- taking the one-page / two-page spread control with it. The index
+    # the reader SEES is contents-*.xhtml, set as proper fixed pages;
+    # toc.xhtml stays in the manifest as the nav document behind the
+    # reader's own table-of-contents menu.
+    if not is_fxl:
+        spine_items.append('<itemref idref="toc"/>')
 
     # Chapters (+ endnotes as non-linear)
     for item_id, href in chapter_items:
@@ -924,6 +947,13 @@ def _render_package_opf(
         )
         if item_id == "endnotes":
             spine_items.append(f'<itemref idref="{item_id}" linear="no"/>')
+        elif is_fxl and item_id.startswith("contents-"):
+            # Right then left, so the index reads as facing pages.
+            side = "right" if int(item_id.split("-")[1]) % 2 else "left"
+            spine_items.append(
+                f'<itemref idref="{item_id}" '
+                f'properties="rendition:page-spread-{side}"/>'
+            )
         elif is_fxl and item_id == "blank-front":
             # Closes the cover's spread (left is the last slot in RTL),
             # so page 1 opens a fresh one on the right.
@@ -1507,6 +1537,7 @@ def build_epub(config: BuildConfig) -> Path:
         else:
             endnotes_label = "الحواشي"
     toc_html = toc_template.render(
+        labels=INDEX_LABELS,
         surahs=mushaf.surahs,
         juz_entries=juz_entries,
         page_list=page_list,
@@ -2088,6 +2119,84 @@ def _apply_tajweed(pages, mushaf, tanween_span="letter"):
     return marks, coloured, skipped
 
 
+def _build_fxl_contents(env, mushaf, files, surah_names):
+    """Render the index as pre-paginated pages, like every other leaf.
+
+    The navigation document stays the machine-readable table of contents
+    that the reader's own menu uses, but it is NOT in the spine: a
+    reflowable spine item inside a pre-paginated book makes a reading
+    system drop out of fixed-layout mode when it reaches that page, which
+    is what takes the one-page / two-page control away from the reader.
+
+    An EVEN number of pages, deliberately. The spread pairing downstream
+    -- Al-Fatiha on the right facing the opening of Al-Baqarah on the
+    left -- depends on the parity of everything before it, and a reader
+    that simply chunks the spine two at a time has nothing else to go on.
+    """
+    from ..config.registry import JUZ_NAMES
+    from ..data.indopak_fxl import PAGE_H, PAGE_W, page_geometry
+    from ..data.indopak_pages import load_indopak_page_map
+
+    template = env.get_template("contents_indopak_fxl.xhtml.j2")
+    geo = page_geometry(3, 15)
+    ayah_pages = load_indopak_page_map()
+
+    juz_entries = []
+    seen_juz = set()
+    for surah in mushaf.surahs:
+        for ayah in surah.ayahs:
+            n = ayah.juz_number
+            if n is None or n in seen_juz:
+                continue
+            seen_juz.add(n)
+            juz_entries.append({
+                "number": n,
+                "name": JUZ_NAMES.get(n, ""),
+                "href": f"{_fxl_page_href(ayah_pages[(surah.number, ayah.ayah_number)])}",
+                "page": ayah_pages[(surah.number, ayah.ayah_number)],
+            })
+    juz_entries.sort(key=lambda e: e["number"])
+
+    surah_entries = [
+        {
+            "number": s.number,
+            "name": surah_names[s.number],
+            "translit": s.name_transliteration,
+            "href": f"{_fxl_page_href(ayah_pages[(s.number, 1)])}#surah-{s.number}",
+            "page": ayah_pages[(s.number, 1)],
+        }
+        for s in mushaf.surahs
+    ]
+
+    # 24 suras a leaf, not 38. The index is read at the same arm's length
+    # as the mushaf itself, so its type has to hold up at that distance;
+    # fewer rows a leaf is what buys the size. Five sura leaves plus the
+    # para leaf is six -- still EVEN, which the spread pairing needs.
+    L = INDEX_LABELS
+    leaves = [(L["juz_index_ar"], L["juz_index_en"],
+               L["juz_col_ar"], L["juz_en"], juz_entries, 2)]
+    per_leaf = 24
+    for i in range(0, len(surah_entries), per_leaf):
+        leaves.append(
+            (L["surah_index_ar"], L["surah_index_en"],
+             L["surah_col_ar"], L["surah_en"],
+             surah_entries[i:i + per_leaf], 2)
+        )
+
+    items = []
+    for i, (title, title_en, head_name_ar, head_name, entries, cols) in (
+            enumerate(leaves, start=1)):
+        html = template.render(
+            title=title, title_en=title_en, entries=entries, cols=cols,
+            head_name_ar=head_name_ar, head_name=head_name,
+            geo=geo, page_w=PAGE_W, page_h=PAGE_H,
+        )
+        href = f"contents-{i}.xhtml"
+        files[f"OEBPS/{href}"] = html.encode("utf-8")
+        items.append((f"contents-{i}", href))
+    return items
+
+
 def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
     """Build the TRUE fixed-layout 15-line mushaf: one file per page.
 
@@ -2115,7 +2224,8 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
     tajweed = bool(config and config.layout.tajweed)
     scheme = legend_halves = None
     if tajweed:
-        from ..data.tajweed import SCHEME, QUDRATULLAH_PALETTE
+        from ..data.tajweed import SCHEME
+        from ..data.tajweed_rules import load_rules
         if config.layout.tajweed_method == "rules":
             marks, ok, skipped = _apply_tajweed_rules(
                 pages, mushaf, config.layout.tajweed_tanween
@@ -2125,7 +2235,14 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
                 pages, mushaf, config.layout.tajweed_tanween
             )
         scheme = SCHEME
-        keys = [(colour, label) for _, colour, label in QUDRATULLAH_PALETTE]
+        # Names come from the rule file, so renaming a rule there renames
+        # it in the key too. The COLOUR does not: the swatch inherits it
+        # from the rule's own class in the stylesheet, which is the one
+        # place a palette is written.
+        keys = [
+            {"id": r["id"], "name": r["name"], "name_ar": r["name_ar"]}
+            for r in load_rules()["rules"]
+        ]
         # The key is split across facing pages, as the printed mushaf sets
         # it — a single strip would not hold all seven.
         legend_halves = (keys[:4], keys[4:])
@@ -2157,7 +2274,8 @@ def _build_indopak_fxl(env, mushaf, files, bismillah, config=None):
         '</html>\n'
     ).encode("utf-8")
 
-    chapter_items = [("blank-front", "blank-front.xhtml")]
+    chapter_items = _build_fxl_contents(env, mushaf, files, surah_names)
+    chapter_items.append(("blank-front", "blank-front.xhtml"))
     for page_number in sorted(pages):
         page = pages[page_number]
         geo = page_geometry(page_number, len(page["lines"]),

@@ -44,6 +44,23 @@
 {%- endif %}
         }
         table, tr, td { border: none !important; }
+{%- if fxl_w %}
+        /* On a fixed canvas the cover must FILL it: a table sized to its
+           content leaves the title floating in the top third, which is
+           what makes a perfectly valid fixed page look like a stray
+           reflowable one. The frame is the same gold rule the mushaf
+           pages carry, so the cover reads as the first leaf of the book
+           rather than a loose sheet in front of it. */
+        .cover-wrap { height: {{ fxl_h }}px; }
+        .cover-main-cell { vertical-align: middle !important; padding: 0 1em !important; }
+        body::after {
+            content: "";
+            position: fixed;
+            left: 87px; top: 87px; right: 87px; bottom: 87px;
+            border: 3px solid #b9a980;
+            pointer-events: none;
+        }
+{%- endif %}
         .cover-wrap {
             width: 100%;
             border: none;
