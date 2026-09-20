@@ -4,6 +4,10 @@
 **WARNING:** this repo is not a true 1 to 1 fork, it has changed a lot of things, things may be broken from the original repo, so please do not use this as a base and use the original authors version.
 repo name has -fixed appended, it means fixed layout, for the EPUBS
 
+
+---------------
+original repo readme:
+
 <div align="center">
 
 <h3>الحمد لله رب العالمين، والصلاة والسلام على سيدنا محمد خاتم النبيين وإمام المرسلين</h3>
